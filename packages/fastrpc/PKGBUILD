@@ -1,12 +1,12 @@
 # Maintainer: archlinux-sheng
-# 来源：qualcomm/fastrpc v1.0.2 源码 tag，对应 debian-sheng 的 fastrpc 作业
-# 上游作业：autoreconf -is → ./configure --prefix=/usr → make -j$(nproc) → make DESTDIR=… install
-#           → 追加安装 sensorspd 的 systemd unit
-# 原生化要点：只把 dpkg-deb 换成 makepkg，编译/安装命令保持一致；unit 由本仓库 patches/ 提供
-#   （文件名是 adsprpcd-sensorspd.service，上游脚本文案写作 adsrpcd-…，以文件本体为准）
-# 依赖：Debian 的 libyaml-0-2 / systemd → Arch 的 libyaml / systemd
-# 待确认：sha256sums 用 SKIP（离线未校验）；unit 的 ExecStart=/usr/bin/adsprpcd 需实测核对
-#   打包不 enable 服务（沿用 sheng-devauth 约定），由 workflow 在 chroot 内 systemctl enable
+# 鏉ユ簮锛歲ualcomm/fastrpc v1.0.2 婧愮爜 tag锛屽搴?debian-sheng 鐨?fastrpc 浣滀笟
+# 涓婃父浣滀笟锛歛utoreconf -is 鈫?./configure --prefix=/usr 鈫?make -j$(nproc) 鈫?make DESTDIR=鈥?install
+#           鈫?杩藉姞瀹夎 sensorspd 鐨?systemd unit
+# 鍘熺敓鍖栬鐐癸細鍙妸 dpkg-deb 鎹㈡垚 makepkg锛岀紪璇?瀹夎鍛戒护淇濇寔涓€鑷达紱unit 鐢辨湰浠撳簱 patches/ 鎻愪緵
+#   锛堟枃浠跺悕鏄?adsprpcd-sensorspd.service锛屼笂娓歌剼鏈枃妗堝啓浣?adsrpcd-鈥︼紝浠ユ枃浠舵湰浣撲负鍑嗭級
+# 渚濊禆锛欴ebian 鐨?libyaml-0-2 / systemd 鈫?Arch 鐨?libyaml / systemd
+# 寰呯‘璁わ細sha256sums 鐢?SKIP锛堢绾挎湭鏍￠獙锛夛紱unit 鐨?ExecStart=/usr/bin/adsprpcd 闇€瀹炴祴鏍稿
+#   鎵撳寘涓?enable 鏈嶅姟锛堟部鐢?sheng-devauth 绾﹀畾锛夛紝鐢?workflow 鍦?chroot 鍐?systemctl enable
 pkgname=fastrpc
 pkgver=1.0.2
 pkgrel=1
@@ -21,25 +21,22 @@ source=("fastrpc-1.0.2.zip::https://github.com/qualcomm/fastrpc/archive/refs/tag
 sha256sums=('SKIP')
 
 build() {
-  cd "$srcdir/fastrpc-1.0.2"
+  cd "$srcdir/fastrpc-1.0.2" || exit 1
   autoreconf -is
   ./configure --prefix=/usr
   make -j"$(nproc)"
 }
 
 package() {
-  cd "$srcdir/fastrpc-1.0.2"
+  cd "$srcdir/fastrpc-1.0.2" || exit 1
   make DESTDIR="$pkgdir" install
 
-  # sensorspd 的 aDSP RPC 守护进程 unit（上游作业从 debian-sheng 的 patches/ 拷入）
-  install -Dm644 "$startdir/../../patches/adsprpcd-sensorspd.service" \
+  # sensorspd 鐨?aDSP RPC 瀹堟姢杩涚▼ unit锛堜笂娓镐綔涓氫粠 debian-sheng 鐨?patches/ 鎷峰叆锛?  install -Dm644 "$startdir/../../patches/adsprpcd-sensorspd.service" \
                  "$pkgdir/usr/lib/systemd/system/adsprpcd-sensorspd.service"
 
-  # 校验：unit 的 ExecStart 指向的二进制必须真的被装上
-  # 注意拼写：二进制与 unit 文件都是 adsprpcd（两个 rp）；上游 workflow 的
-  # enable 步骤把 unit 名写成 adsrpcd-…（少一个 rp），本仓库已按真实文件名处理
+  # 鏍￠獙锛歶nit 鐨?ExecStart 鎸囧悜鐨勪簩杩涘埗蹇呴』鐪熺殑琚涓?  # 娉ㄦ剰鎷煎啓锛氫簩杩涘埗涓?unit 鏂囦欢閮芥槸 adsprpcd锛堜袱涓?rp锛夛紱涓婃父 workflow 鐨?  # enable 姝ラ鎶?unit 鍚嶅啓鎴?adsrpcd-鈥︼紙灏戜竴涓?rp锛夛紝鏈粨搴撳凡鎸夌湡瀹炴枃浠跺悕澶勭悊
   [[ -x "$pkgdir/usr/bin/adsprpcd" ]] || {
-    error "未安装 /usr/bin/adsprpcd，与 adsprpcd-sensorspd.service 的 ExecStart 不符"
+    error "鏈畨瑁?/usr/bin/adsprpcd锛屼笌 adsprpcd-sensorspd.service 鐨?ExecStart 涓嶇"
     exit 1
   }
 }

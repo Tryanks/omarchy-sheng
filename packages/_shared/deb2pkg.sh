@@ -26,7 +26,10 @@ _info() { printf '[deb2pkg] %s\n' "$*" >&2; }
 # ---------------------------------------------------------------------------
 # Debian 包名 → Arch 包名映射（用于 --report 给出的 depends 建议；未收录的会标 UNMAPPED）
 # ---------------------------------------------------------------------------
-_deb_dep_map=(
+# 必须 declare -A：否则 bash 会把 [libgudev-1.0-0] 这类键当作**索引数组的算术下标**求值
+# （含小数点 → invalid arithmetic operator 报错），映射表会退化成索引数组，
+# 且每次 source 都会往 stderr 打错误。声明为关联数组后键按字符串处理。
+declare -A _deb_dep_map=(
   [libc6]=glibc
   [libgcc-s1]=gcc-libs
   [libstdc++6]=gcc-libs
@@ -119,7 +122,7 @@ _deb_normalize_layout() {
     mkdir -p "$root/usr/$d"
     _info "布局修正：/$d → /usr/$d"
     cp -a --no-preserve=ownership "$root/$d/." "$root/usr/$d/"
-    rm -rf "$root/$d"
+    rm -rf "${root:?}/$d"
   done
   if [[ -d "$root/usr/sbin" ]]; then
     _info "布局修正：/usr/sbin → /usr/bin"
@@ -199,6 +202,7 @@ deb_report() {
   echo
   echo "-- 维护者脚本 --"
   local tmp ctl
+  # shellcheck disable=SC2064  # $tmp 是局部变量，必须在"设 trap 时"就插值（RETURN 时已失效）
   tmp="$(mktemp -d)"; trap "rm -rf '$tmp'" RETURN
   bsdtar -xf "$deb" -C "$tmp" 2>/dev/null || { _warn "无法解包（不是有效的 .deb？）：$deb"; return 1; }
   ctl="$(find "$tmp" -maxdepth 1 -name 'control.tar*' -print -quit)"

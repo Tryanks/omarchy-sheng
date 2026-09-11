@@ -1,11 +1,8 @@
 # Maintainer: archlinux-sheng
-# 来源：ianchb/sheng_devauth（源码）+ 本仓库 payload/（systemd unit，取自 debian-sheng）
-# 作用：与内核驱动配合完成小米官方键盘的认证（qteesupplicant）
-# 原生化要点：
-#   * 二进制由 makepkg 在 build() 里编译（上游 Debian 版同样是从源码 make），
-#     而不是搬运现成可执行文件
-#   * Debian 的 postinst/prerm（enable/start/stop/disable）不写入包内：
-#     Arch 惯例是打包不启用服务，由 workflow 在 chroot 内显式 systemctl enable
+# 鏉ユ簮锛歩anchb/sheng_devauth锛堟簮鐮侊級+ 鏈粨搴?payload/锛坰ystemd unit锛屽彇鑷?debian-sheng锛?# 浣滅敤锛氫笌鍐呮牳椹卞姩閰嶅悎瀹屾垚灏忕背瀹樻柟閿洏鐨勮璇侊紙qteesupplicant锛?# 鍘熺敓鍖栬鐐癸細
+#   * 浜岃繘鍒剁敱 makepkg 鍦?build() 閲岀紪璇戯紙涓婃父 Debian 鐗堝悓鏍锋槸浠庢簮鐮?make锛夛紝
+#     鑰屼笉鏄惉杩愮幇鎴愬彲鎵ц鏂囦欢
+#   * Debian 鐨?postinst/prerm锛坋nable/start/stop/disable锛変笉鍐欏叆鍖呭唴锛?#     Arch 鎯緥鏄墦鍖呬笉鍚敤鏈嶅姟锛岀敱 workflow 鍦?chroot 鍐呮樉寮?systemctl enable
 pkgname=sheng-devauth
 pkgver=1.0
 pkgrel=1
@@ -20,9 +17,9 @@ source=("sheng-devauth::git+${SHENG_DEVAUTH_REPO:-https://github.com/ianchb/shen
 sha256sums=('SKIP')
 
 build() {
-  cd "$srcdir/sheng-devauth"
+  cd "$srcdir/sheng-devauth" || exit 1
   make
-  [[ -f xiaomi_devauth ]] || { error "make 未产出 xiaomi_devauth"; exit 1; }
+  [[ -f xiaomi_devauth ]] || { error "make 鏈骇鍑?xiaomi_devauth"; exit 1; }
   chmod 0755 xiaomi_devauth
 }
 
@@ -35,6 +32,6 @@ package() {
   install -Dm644 "$startdir/payload/usr/lib/systemd/system/sheng-devauth.service.d/qtee.conf" \
                  "$pkgdir/usr/lib/systemd/system/sheng-devauth.service.d/qtee.conf"
 
-  # depends 目前只声明 glibc；如上游引入新的动态库依赖，用以下命令核对后补全：
+  # depends 鐩墠鍙０鏄?glibc锛涘涓婃父寮曞叆鏂扮殑鍔ㄦ€佸簱渚濊禆锛岀敤浠ヤ笅鍛戒护鏍稿鍚庤ˉ鍏細
   #   ldd xiaomi_devauth | awk '/=>/ {print $1}'
 }
