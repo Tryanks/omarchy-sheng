@@ -2,7 +2,7 @@
 # 02-mount-chroot.sh —— 挂载虚拟文件系统并准备 chroot 环境
 #
 # 与 ubuntu-sheng 的 02-mount-chroot.sh 对应，差异：
-#   * 设备包从 /tmp/debs（.deb）改为 /tmp/pkgs（.pkg.tar.zst）
+#   * 设备包从 /tmp/debs（.deb）改为 /tmp/pkgs（.pkg.tar.*）
 #   * 不拷贝「解包设备 deb」之类的东西：Arch 侧全部设备包都是本地构建的 pacman 包
 #
 # 与上游一致：bind /dev、/dev/pts、proc、sysfs，并借用宿主 resolv.conf
@@ -42,11 +42,11 @@ cp -a "$REPO_ROOT/scripts/in-chroot" "$MOUNT/root/sheng-build/"
 cp -a "$REPO_ROOT/scripts/lists"     "$MOUNT/root/sheng-build/"
 chmod -R 755 "$MOUNT/root/sheng-build"
 
-# 设备包 .pkg.tar.zst 入镜像 /tmp/pkgs
+# 设备包 .pkg.tar.* 入镜像 /tmp/pkgs
 if [[ -d "$REPO_ROOT/pkgs" ]]; then
   install -d "$MOUNT/tmp/pkgs"
   cp -a "$REPO_ROOT/pkgs/." "$MOUNT/tmp/pkgs/"
-  log "已拷入 $(find "$MOUNT/tmp/pkgs" -name '*.pkg.tar.zst' | wc -l) 个 pacman 包到 /tmp/pkgs"
+  log "已拷入 $(find "$MOUNT/tmp/pkgs" -name '*.pkg.tar.*' | wc -l) 个 pacman 包到 /tmp/pkgs"
 fi
 
 # 其余 payload（boot.img / Image.gz-dtb_sheng 等）

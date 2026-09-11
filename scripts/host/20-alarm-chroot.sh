@@ -198,7 +198,7 @@ alarm_build_aur_source_pkgs() {
     alarm_chroot_run "$ALARM_CHROOT" chown -R "${BUILDER_USER}:${BUILDER_USER}" "/build/aur/$name" || true
     alarm_chroot_run "$ALARM_CHROOT" su - "$BUILDER_USER" -c "cd /build/aur/$name && makepkg -f --noconfirm --skippgpcheck" \
       || { warn "makepkg 失败: $name"; continue; }
-    alarm_chroot_run "$ALARM_CHROOT" bash -c "pacman -U --noconfirm /build/aur/$name/*.pkg.tar.zst" \
+    alarm_chroot_run "$ALARM_CHROOT" bash -c "pacman -U --noconfirm /build/aur/$name/*.pkg.tar.*" \
       || { warn "安装失败: $name"; continue; }
   done
   alarm_umount_virtfs "$ALARM_CHROOT"

@@ -28,7 +28,7 @@
 #   PKGS_OUT       构建产物回拷贝目录（默认 <仓库根>/pkgs）
 #   BUILD_DIR      chroot 内的构建根（默认 /build）
 #   BUILDER_USER   构建用户（默认 builder）
-#   PKG_PREINSTALL 空格分隔的 .pkg.tar.zst 列表，先装进 chroot 再构建
+#   PKG_PREINSTALL 空格分隔的 .pkg.tar.* 列表，先装进 chroot 再构建
 #                  （用于包间依赖，例如 iio-sensor-proxy 需要本仓库构建的 libssc）
 #   LOCAL_SOURCES_DIR  宿主目录，其中的文件会被拷进 chroot 的 $BUILD_DIR/pkgs，
 #                  供 PKGBUILD 的 source=("<pkgname>.deb") 取用（**不**执行 pacman -U）。
@@ -41,7 +41,7 @@
 #                  scripts/stage-firmware.sh 生成，--all 模式下无法完成，
 #                  跳过以免整个汇总作业失败（正经构建走 package-firmware 作业）
 #
-# 产出: $PKGS_OUT/<pkgname>-<pkgver>-<pkgrel>-aarch64.pkg.tar.zst
+# 产出: $PKGS_OUT/<pkgname>-<pkgver>-<pkgrel>-aarch64.pkg.tar.*
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -144,14 +144,14 @@ install -d "$ALARM_CHROOT$BUILD_DIR/pkgs"
 # ---------------------------------------------------------------------------
 # 2.6) 强制 makepkg 的产物目录
 #   实测：ALARM 的 makepkg.conf 把 PKGDEST 指到 $startdir 之外，构建明明成功
-#   （`==> Finished making: ...`）却在 $startdir 与 /build 下都找不到 .pkg.tar.zst。
+#   （`==> Finished making: ...`）却在 $startdir 与 /build 下都找不到 .pkg.tar.*。
 #   与其猜它在哪，不如追加一条 PKGDEST 到 makepkg.conf 末尾（后赋值覆盖前面的），
 #   把产物统一到 $BUILD_DIR/pkgs-out，收集逻辑就有了确定位置。
 # ---------------------------------------------------------------------------
 MAKEPKG_PKGDEST="$BUILD_DIR/pkgs-out"
 install -d -m 777 "$ALARM_CHROOT$MAKEPKG_PKGDEST"
 if ! grep -qE "^[[:space:]]*PKGDEST=$MAKEPKG_PKGDEST" "$ALARM_CHROOT/etc/makepkg.conf" 2>/dev/null; then
-  printf '\n# archlinux-sheng：统一产物目录（构建脚本按此路径收集 .pkg.tar.zst）\nPKGDEST=%s\n' \
+  printf '\n# archlinux-sheng：统一产物目录（构建脚本按此路径收集 .pkg.tar.*）\nPKGDEST=%s\n' \
     "$MAKEPKG_PKGDEST" >> "$ALARM_CHROOT/etc/makepkg.conf"
   log "已设置 makepkg PKGDEST=$MAKEPKG_PKGDEST（chroot 内）"
 fi
@@ -164,8 +164,8 @@ if [[ -n "$PKG_PREINSTALL" ]]; then
       warn "预装包不存在，忽略: $f"
     fi
   done
-  if compgen -G "$ALARM_CHROOT$BUILD_DIR/pkgs/*.pkg.tar.zst" >/dev/null 2>&1; then
-    alarm_chroot_run "$ALARM_CHROOT" bash -c "pacman -U --noconfirm $BUILD_DIR/pkgs/*.pkg.tar.zst" \
+  if compgen -G "$ALARM_CHROOT$BUILD_DIR/pkgs/*.pkg.tar.*" >/dev/null 2>&1; then
+    alarm_chroot_run "$ALARM_CHROOT" bash -c "pacman -U --noconfirm $BUILD_DIR/pkgs/*.pkg.tar.*" \
       || die "预装依赖包失败（检查包间依赖是否已构建）"
   fi
 fi
@@ -235,7 +235,7 @@ for sub in "${PKG_SUBDIRS[@]}"; do
   # 注意：清理范围是**整棵构建树**而不是只看 $startdir —— 实测 ALARM 的 makepkg.conf
   # 并不把包放在 $startdir（PKGDEST 指向别处），所以判据不能假设位置。
   rm -rf "${ALARM_CHROOT:?}${startdir}/src" "${ALARM_CHROOT:?}${startdir}/pkg" 2>/dev/null || true
-  find "$ALARM_CHROOT$BUILD_DIR" -maxdepth 5 -name '*.pkg.tar.zst' -delete 2>/dev/null || true
+  find "$ALARM_CHROOT$BUILD_DIR" -maxdepth 5 -name '*.pkg.tar.*' -delete 2>/dev/null || true
 
   alarm_chroot_run "$ALARM_CHROOT" chown -R "${BUILDER_USER}:${BUILDER_USER}" "$startdir" \
     || die "chown $startdir 失败"
@@ -255,18 +255,18 @@ for sub in "${PKG_SUBDIRS[@]}"; do
   produced=()
   while IFS= read -r f; do
     [[ -n "$f" ]] && produced+=("$f")
-  done < <(find "$ALARM_CHROOT$MAKEPKG_PKGDEST" -maxdepth 2 -name '*.pkg.tar.zst' 2>/dev/null || true)
+  done < <(find "$ALARM_CHROOT$MAKEPKG_PKGDEST" -maxdepth 2 -name '*.pkg.tar.*' 2>/dev/null || true)
 
   if [[ "${#produced[@]}" -eq 0 ]]; then
     warn "在 $MAKEPKG_PKGDEST 没找到产物，改为全 chroot 搜索"
     while IFS= read -r f; do
       [[ -n "$f" ]] && produced+=("$f")
-    done < <(find "$ALARM_CHROOT" -xdev -name '*.pkg.tar.zst' \
+    done < <(find "$ALARM_CHROOT" -xdev -name '*.pkg.tar.*' \
                -not -path "$ALARM_CHROOT/proc/*" -not -path "$ALARM_CHROOT/sys/*" \
                -not -path "$ALARM_CHROOT/dev/*" 2>/dev/null || true)
   fi
 
-  [[ "${#produced[@]}" -gt 0 ]] || die "packages/$sub 构建后没有产出 *.pkg.tar.zst（PKGDEST=$MAKEPKG_PKGDEST，且全 chroot 搜索为空）"
+  [[ "${#produced[@]}" -gt 0 ]] || die "packages/$sub 构建后没有产出 *.pkg.tar.*（PKGDEST=$MAKEPKG_PKGDEST，且全 chroot 搜索为空）"
 
   for f in "${produced[@]}"; do
     cp -f "$f" "$PKGS_OUT/"

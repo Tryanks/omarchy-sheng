@@ -103,7 +103,7 @@ deb 只作为「载荷来源」被解包，绝不把 deb 直接摊进镜像。
 
 ### Arch 侧依赖解析与两个「换包」点
 
-* `pacman -U /tmp/pkgs/*.pkg.tar.zst` 会按 `.PKGINFO` 的 `depend` 解析依赖，缺依赖直接失败
+* `pacman -U /tmp/pkgs/*.pkg.tar.*` 会按 `.PKGINFO` 的 `depend` 解析依赖，缺依赖直接失败
   （不会像 `apt-get install /tmp/*.deb || apt-get install -f -y` 那样静默留在半配置状态）。
 * ALARM extra 里已经有 `libssc 0.4.4-1` 与 `iio-sensor-proxy 3.9-1`，而本仓库要装自己
   构建的 `libssc`（带 QRTR 等待补丁）与 `iio-sensor-proxy-sheng`。pacman 默认拒绝「降级」，
@@ -174,7 +174,7 @@ patches/ mkbootimg sm8550.config
 * 以 `builder` 身份执行 `makepkg -f --noconfirm --nocolor`（macOS 风格的
   `su - builder -c "cd /build/packages/<pkg> && makepkg ..."`），
   makepkg 自己会在 `package()` 阶段调用 `fakeroot`；
-* 把产出的 `*.pkg.tar.zst` 拷回宿主 `pkgs/`。
+* 把产出的 `*.pkg.tar.*` 拷回宿主 `pkgs/`。
 
 **增量复用与缓存**：
 
@@ -288,7 +288,7 @@ patches/ mkbootimg sm8550.config
   镜像内的脚本由 `scripts/host/02-mount-chroot.sh` 统一 `chmod -R 755`。
 - `.gitattributes` 设了 `* text=auto eol=lf`，防止 CRLF 破坏 shell 脚本与 PKGBUILD
   （CRLF 会让 `makepkg` 与 `#!/usr/bin/env bash` 直接失败）。
-- `.gitignore` 排除了构建产物（`*.deb`、`*.pkg.tar.zst`、`src/`、`pkg/`、`pkgs/`、`deb-out/`、
+- `.gitignore` 排除了构建产物（`*.deb`、`*.pkg.tar.*`、`src/`、`pkg/`、`pkgs/`、`deb-out/`、
   `packages/**/sheng-firmware.tar.zst` 等），但 **`packages/*/payload/` 必须提交**
   （那是 alsa UCM2、传感器注册表、systemd unit 的数据源），`patches/`、`mkbootimg`、
   `sm8550.config` 也都要提交。

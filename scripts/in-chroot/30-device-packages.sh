@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 30-device-packages.sh —— 安装全部设备功能包（/tmp/pkgs/*.pkg.tar.zst）并做设备侧收尾
+# 30-device-packages.sh —— 安装全部设备功能包（/tmp/pkgs/*.pkg.tar.*）并做设备侧收尾
 #
 # 对应 ubuntu-sheng 的 30-device-packages.sh，语义一致：
 #   安装本地包 → 修复可执行权限 → depmod → enable 传感器/devauth 服务。
@@ -27,15 +27,15 @@ source "$BUILD_DIR/common/distro-env.sh"
 source "$BUILD_DIR/in-chroot/lib-pac.sh"
 
 shopt -s nullglob
-pkgs=(/tmp/pkgs/*.pkg.tar.zst)
-[[ "${#pkgs[@]}" -gt 0 ]] || die "/tmp/pkgs 下没有 .pkg.tar.zst"
+pkgs=(/tmp/pkgs/*.pkg.tar.*)
+[[ "${#pkgs[@]}" -gt 0 ]] || die "/tmp/pkgs 下没有 .pkg.tar.*"
 
 log "待安装设备包（${#pkgs[@]} 个）："
 for f in "${pkgs[@]}"; do
   # 包名/版本直接从文件名解析（makepkg 的命名规则：
-  # <pkgname>-<pkgver>-<pkgrel>-<arch>.pkg.tar.zst），避免依赖 pacman -Qp 的额外开关
+  # <pkgname>-<pkgver>-<pkgrel>-<arch>.pkg.tar.*），避免依赖 pacman -Qp 的额外开关
   base="$(basename "$f")"
-  base="${base%.pkg.tar.zst}"
+  base="${base%.pkg.tar.*}"
   printf '    %-56s\n' "$base"
 done
 

@@ -18,7 +18,7 @@
 #   ALARM_CHROOT / PKGS_OUT / BUILDER_USER  透传给 21-build-pkg.sh
 #   XIAOMI_PKGS  空格分隔的包目录名列表（覆盖默认的按文件名推导）
 #
-# 产出: $PKGS_OUT/<pkgname>-<pkgver>-<pkgrel>-aarch64.pkg.tar.zst
+# 产出: $PKGS_OUT/<pkgname>-<pkgver>-<pkgrel>-aarch64.pkg.tar.*
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../common/distro-env.sh

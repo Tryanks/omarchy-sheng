@@ -1,6 +1,6 @@
 name: _Build Device Packages (Arch)
 
-# 可复用工作流：构建 Arch Linux ARM (aarch64) 侧的全部设备功能包（.pkg.tar.zst）
+# 可复用工作流：构建 Arch Linux ARM (aarch64) 侧的全部设备功能包（.pkg.tar.*）
 # 由 rootfs.yml 通过 workflow_call 调用，与 ubuntu-sheng 的 _packages.yml 一一对应。
 #
 # 与 Ubuntu 版的关键差异：
@@ -142,8 +142,8 @@ jobs:
           chmod +x scripts/host/21-build-pkg.sh
           sudo bash scripts/host/21-build-pkg.sh linux-xiaomi-sheng/custom
           # 报告内核版本（_packages.yml 的 kernel_version 输出）：文件名为
-          # linux-xiaomi-sheng-<kver>-<pkgrel>-aarch64.pkg.tar.zst
-          kpkg="$(basename "$(ls -1 pkgs/linux-xiaomi-sheng-*.pkg.tar.zst | head -n1)")"
+          # linux-xiaomi-sheng-<kver>-<pkgrel>-aarch64.pkg.tar.*
+          kpkg="$(basename "$(ls -1 pkgs/linux-xiaomi-sheng-*.pkg.tar.* | head -n1)")"
           kpkg="${kpkg#linux-xiaomi-sheng-}"
           kver="${kpkg%%-*}"
           echo "内核版本: $kver"
@@ -159,7 +159,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kernel-custom-pkg
-          path: pkgs/*.pkg.tar.zst
+          path: pkgs/*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -243,7 +243,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kernel-prebuilt-pkg
-          path: pkgs/linux-xiaomi-sheng-*.pkg.tar.zst
+          path: pkgs/linux-xiaomi-sheng-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -282,7 +282,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: fastrpc-pkg
-          path: pkgs/*.pkg.tar.zst
+          path: pkgs/*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -322,7 +322,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: libssc-pkg
-          path: pkgs/libssc-*.pkg.tar.zst
+          path: pkgs/libssc-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -361,7 +361,7 @@ jobs:
         run: |
           chmod +x scripts/host/21-build-pkg.sh
           # PKG_PREINSTALL 用真实文件路径（上游版本变化时按 glob 取第一个）
-          PRE="$(ls -1 deps/libssc-*.pkg.tar.zst | head -n1)"
+          PRE="$(ls -1 deps/libssc-*.pkg.tar.* | head -n1)"
           sudo env PKG_PREINSTALL="$PRE" bash scripts/host/21-build-pkg.sh iio-sensor-proxy
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
@@ -369,7 +369,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: iio-sensor-proxy-pkg
-          path: pkgs/iio-sensor-proxy-sheng-*.pkg.tar.zst
+          path: pkgs/iio-sensor-proxy-sheng-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -408,7 +408,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: sheng-sensors-pkg
-          path: pkgs/sheng-sensors-*.pkg.tar.zst
+          path: pkgs/sheng-sensors-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -450,7 +450,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: sheng-devauth-pkg
-          path: pkgs/sheng-devauth-*.pkg.tar.zst
+          path: pkgs/sheng-devauth-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -489,7 +489,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: alsa-xiaomi-sheng-pkg
-          path: pkgs/alsa-xiaomi-sheng-*.pkg.tar.zst
+          path: pkgs/alsa-xiaomi-sheng-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -537,7 +537,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: firmware-xiaomi-sheng-pkg
-          path: pkgs/firmware-xiaomi-sheng-*.pkg.tar.zst
+          path: pkgs/firmware-xiaomi-sheng-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
 
@@ -584,7 +584,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: xiaomi-pkgs
-          path: pkgs/xiaomi-*.pkg.tar.zst
+          path: pkgs/xiaomi-*.pkg.tar.*
           retention-days: 3
           if-no-files-found: error
       - uses: actions/upload-artifact@v7

@@ -308,7 +308,7 @@ jobs:
 
       - name: Verify Collected Packages
         run: |
-          count="$(find pkgs -maxdepth 1 -name '*.pkg.tar.zst' | wc -l)"
+          count="$(find pkgs -maxdepth 1 -name '*.pkg.tar.*' | wc -l)"
           echo "共收集到 ${count} 个 pacman 包："
           ls -lh pkgs/ | sed 's/^/    /'
 
@@ -316,13 +316,13 @@ jobs:
           missing=0
           for p in linux-xiaomi-sheng fastrpc libssc iio-sensor-proxy-sheng sheng-sensors \
                    sheng-devauth alsa-xiaomi-sheng firmware-xiaomi-sheng; do
-            if ! compgen -G "pkgs/${p}-*.pkg.tar.zst" >/dev/null; then
+            if ! compgen -G "pkgs/${p}-*.pkg.tar.*" >/dev/null; then
               echo "::error::缺少必需的设备包: ${p}"
               missing=1
             fi
           done
 
-          xiaomi="$(find pkgs -maxdepth 1 -name 'xiaomi-*.pkg.tar.zst' | wc -l)"
+          xiaomi="$(find pkgs -maxdepth 1 -name 'xiaomi-*.pkg.tar.*' | wc -l)"
           echo "xiaomi-* 包: ${xiaomi} 个"
           if [ "$xiaomi" -lt 6 ]; then
             echo "::warning::xiaomi-* 包少于 6 个（${xiaomi}）：快充/充电模式/触控/手写笔/指纹/键盘 中会有功能缺失"
@@ -469,5 +469,5 @@ jobs:
             echo "| initramfs | 不生成（CONFIG_EXT4_FS=y，可直接挂载 ext4 根分区启动） |"
             echo "| rootfs.img | $(du -h rootfs.img 2>/dev/null | cut -f1 || echo 'N/A') |"
             echo "| boot.img | $(du -h boot.img 2>/dev/null | cut -f1 || echo 'N/A') |"
-            echo "| 本地 pacman 包数量 | $(find pkgs -maxdepth 1 -name '*.pkg.tar.zst' 2>/dev/null | wc -l) |"
+            echo "| 本地 pacman 包数量 | $(find pkgs -maxdepth 1 -name '*.pkg.tar.*' 2>/dev/null | wc -l) |"
           } >> "$GITHUB_STEP_SUMMARY"
