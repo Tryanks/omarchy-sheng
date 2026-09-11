@@ -108,20 +108,43 @@ alarm_chroot_run() {
 #         ② 补上 DisableSandbox（pacman 7.0+ 的配置项；未知项只会 warning，不会致命）
 #   注意：ALARM 的 pacman 实测**不支持** `--disable-sandbox` 命令行开关（能力探测已证实），
 #   因此只能走配置文件这条路。
-#   用法: alarm_disable_pacman_sandbox <chroot 根目录>
+#   用法: alarm_tune_pacman_for_chroot <chroot 根目录> [--no-checkspace]
 # ---------------------------------------------------------------------------
-alarm_disable_pacman_sandbox() {
+alarm_tune_pacman_for_chroot() {
   local root="${1:?需要 chroot 根目录}"
+  local no_checkspace="${2:-}"
   local conf="$root/etc/pacman.conf"
-  [[ -f "$conf" ]] || { warn "找不到 $conf，跳过 pacman 沙箱设置"; return 0; }
 
+  # ① /etc/mtab 必须是 → /proc/self/mounts 的软链。
+  #    pacman 判定"cachedir 的挂载点"依赖它；ALARM tarball 里 /etc/mtab 可能是
+  #    缺失或空普通文件 → getmntent 读不到任何挂载点 → 判定失败。
+  if [[ ! -L "$root/etc/mtab" ]]; then
+    rm -f "$root/etc/mtab"
+    ln -s /proc/self/mounts "$root/etc/mtab"
+    log "已修正 $root/etc/mtab → /proc/self/mounts"
+  fi
+
+  [[ -f "$conf" ]] || { warn "找不到 $conf，跳过 pacman 调优"; return 0; }
+
+  # ② 下载沙箱：chroot 内建不起来（见上）
   if ! grep -qE '^[[:space:]]*DisableSandbox' "$conf"; then
     sed -i '/^\[options\]/a DisableSandbox' "$conf"
   fi
   if grep -qE '^[[:space:]]*DownloadUser' "$conf"; then
     sed -i -E 's|^([[:space:]]*)DownloadUser[[:space:]]*=.*|\1# DownloadUser 已由 archlinux-sheng 注释：chroot 内无法建立下载沙箱|' "$conf"
   fi
-  log "已关闭 pacman 下载沙箱（DisableSandbox + 注释 DownloadUser）: $conf"
+
+  # ③ CheckSpace：pacman 会在事务前做磁盘空间检查，而该检查同样需要挂载点信息。
+  #    即使在 /proc 已挂载、mtab 已修正的情况下，构建 chroot 里仍实测失败：
+  #      error: could not determine cachedir mount point /var/cache/pacman/pkg
+  #      error: failed to commit transaction (not enough free disk space)
+  #    因此构建 chroot 直接关掉该检查（镜像内保留，见调用方是否传 --no-checkspace）。
+  if [[ "$no_checkspace" == "--no-checkspace" ]] && grep -qE '^[[:space:]]*CheckSpace' "$conf"; then
+    sed -i -E 's|^([[:space:]]*)CheckSpace.*|\1# CheckSpace 已由 archlinux-sheng 注释：chroot 内无法判定挂载点|' "$conf"
+    log "已在构建 chroot 关闭 CheckSpace（避免 chroot 内的挂载点判定失败）"
+  fi
+
+  log "pacman 已在 chroot 下调优: $conf"
 }
 
 # ---------------------------------------------------------------------------

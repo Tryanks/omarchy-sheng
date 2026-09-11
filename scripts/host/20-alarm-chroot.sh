@@ -139,11 +139,13 @@ grep -qE '^[[:space:]]*Architecture[[:space:]]*=[[:space:]]*aarch64' "$ALARM_CHR
 }
 
 # ---------------------------------------------------------------------------
-# 2.5) 关闭 pacman 7.x 的下载沙箱（详见 alarm-lib.sh 里 alarm_disable_pacman_sandbox 的说明）
-#   实测失败链：could not determine cachedir mount point → 空间检查误判 → 事务中止。
+# 2.5) 让 pacman 能在 chroot 里工作（详见 alarm-lib.sh 里 alarm_tune_pacman_for_chroot）
+#   实测失败链：could not determine cachedir mount point → 空间检查误判
+#   → "not enough free disk space" → 事务中止。
+#   三处修法：修正 /etc/mtab 软链、关闭下载沙箱、构建 chroot 关闭 CheckSpace。
 #   ALARM 的 pacman 不支持 --disable-sandbox 开关，只能改配置文件。
 # ---------------------------------------------------------------------------
-alarm_disable_pacman_sandbox "$ALARM_CHROOT"
+alarm_tune_pacman_for_chroot "$ALARM_CHROOT" --no-checkspace
 
 # ---------------------------------------------------------------------------
 # 3) 密钥环（只有全新 chroot 才需要）

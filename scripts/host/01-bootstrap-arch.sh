@@ -94,12 +94,13 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5.5) 关闭 pacman 7.x 的下载沙箱（镜像内也要，否则镜像里的 pacman 同样失败）
-#   实现与说明见 alarm-lib.sh 的 alarm_disable_pacman_sandbox；
-#   本步骤影响的是**最终镜像**的 pacman.conf：镜像内后续所有 pacman 操作
-#   （10-base.sh / 20-desktop.sh / 30-device-packages.sh）都依赖它。
+# 5.5) 让镜像里的 pacman 也能在 chroot 里工作
+#   实现与说明见 alarm-lib.sh 的 alarm_tune_pacman_for_chroot：
+#   修正 /etc/mtab 软链（pacman 判定挂载点要用）、关闭下载沙箱。
+#   这里**不**关闭 CheckSpace：镜像内的 /proc 由 02-mount-chroot.sh 挂载，
+#   mtab 修好后空间检查可正常工作，保留它对设备侧也更安全。
 # ---------------------------------------------------------------------------
-alarm_disable_pacman_sandbox "$MOUNT"
+alarm_tune_pacman_for_chroot "$MOUNT"
 
 # ---------------------------------------------------------------------------
 # 6) 初始化 pacman 密钥环并同步数据库
