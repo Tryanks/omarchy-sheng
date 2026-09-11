@@ -52,12 +52,16 @@ done
 #      与元包冲突时**不会**顺带移除它的分包，而分包与本包文件路径会重叠
 #      （例如 ath12k/WCN7850/hw2.0/*），会让后面的 pacman -U 因文件冲突直接失败。
 #      因此这里显式移除全部 linux-firmware* 包，设备固件统一由本仓库的包提供。
-#      注意：ALARM 的 stock linux-aarch64（无 sheng DTB）由 linux-xiaomi-sheng 的
-#      conflicts 自动移除，无需在此处理。
+#    * linux-aarch64：ALARM 的 rootfs tarball 预装的 stock 内核（无 sheng DTB）。
+#      linux-xiaomi-sheng 声明了 conflicts=('linux' 'linux-aarch64')，但 pacman 在
+#      `--noconfirm` 下对"是否移除冲突包"默认回答 N，实测报
+#        error: unresolvable package conflicts detected
+#        :: linux-xiaomi-sheng-... and linux-aarch64-... are in conflict (linux)
+#      所以必须在这里显式先删掉（-Rdd 跳过依赖检查）。
 # ---------------------------------------------------------------------------
-for name in libssc iio-sensor-proxy; do
+for name in libssc iio-sensor-proxy linux-aarch64 linux; do
   if pac_installed "$name"; then
-    warn "移除仓库版本的 $name（$(pac_version "$name")），改用本仓库构建的本地包"
+    warn "移除 $name（$(pac_version "$name")）：与本地包同名/冲突，改由本仓库提供"
     pacman -Rdd --noconfirm --color never "$name" || warn "移除 $name 失败（继续）"
   fi
 done
