@@ -32,7 +32,7 @@
 | Bootstrap Arch Linux ARM | 解包 ALARM → 写 mirrorlist → 校验 `Architecture = aarch64` 与 `[core] [extra] [alarm]` → keyring → `pacman -Sy` | 与 Prepare 同理；`.pacnew` 会故意失败 |
 | `[chroot] Install Base Packages` | `pacman -Syu` + 基础包 | — |
 | `[chroot] Install Desktop` | 很快（pacman 并行下载，Plasma 约 1 分钟） | 可选包缺失只告警；核心包由校验兜底 |
-| `[chroot] Install Device Packages` | `移除 …`（libssc / iio-sensor-proxy / linux-firmware* / linux-aarch64）→ `pacman -U` 成功 → `depmod` → enable 传感器与 devauth 服务 | ① 报**文件冲突**：还有 `linux-firmware*` 分包没被移除；② 报**冲突**且提到 `linux-aarch64`：stock 内核没被移除；③ 报**降级**：本地 `libssc` 版本低于 ALARM（已用 `-Rdd` 规避） |
+| `[chroot] Install Device Packages` | `移除 …：与本地包同名/冲突，改由本仓库提供` → `移除基础镜像预装的固件包（N 个）` → `安装中（pacman -U）` → `为内核 … 生成模块依赖索引（depmod）` → enable 传感器与 devauth 服务 | ① 报**文件冲突**：还有 `linux-firmware*` 分包没被移除；② 报**冲突**且提到 `linux-aarch64`：stock 内核没被移除；③ 报**降级**：本地 `libssc` 版本低于 ALARM（已用 `-Rdd` 规避） |
 | `[chroot] Verify Image` | 全部 `[ OK ]`：`modules.dep/alias`、fstab、locale、设备关键文件、`pacman -Q` 逐包、wheel/sudoers、自动登录、显示管理器与 NetworkManager enabled | 按提示定位 |
 | Clean pacman cache | 清 `/var/cache/pacman/pkg` | 必须在 verify 之后（`pacman -Scc` 会清掉 sync 数据库） |
 
