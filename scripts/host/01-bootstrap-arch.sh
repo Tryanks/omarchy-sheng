@@ -94,6 +94,23 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 5.5) 关闭 pacman 7.x 的下载沙箱（镜像内也要，否则镜像里的 pacman 同样失败）
+#   ALARM 的 pacman.conf 带 `DownloadUser = alpm`；pacman 7 的下载沙箱需要可判定的
+#   cachedir 挂载点，在 chroot 里会报
+#   `could not determine cachedir mount point /var/cache/pacman/pkg/download-XXXX`。
+#   本步骤影响的是**最终镜像**的 pacman.conf：镜像内后续所有 pacman 操作
+#   （10-base.sh / 20-desktop.sh / 30-device-packages.sh）都依赖它。
+# ---------------------------------------------------------------------------
+if alarm_chroot_run "$MOUNT" pacman --help 2>/dev/null | grep -q -- '--disable-sandbox'; then
+  if ! grep -qE '^[[:space:]]*DisableSandbox' "$MOUNT/etc/pacman.conf"; then
+    log "关闭镜像内 pacman 的下载沙箱（DisableSandbox）"
+    sed -i '/^\[options\]/a DisableSandbox' "$MOUNT/etc/pacman.conf"
+  fi
+else
+  warn "当前 pacman 不支持 --disable-sandbox（跳过）；若镜像内 pacman 报 cachedir 挂载点错误请人工处理"
+fi
+
+# ---------------------------------------------------------------------------
 # 6) 初始化 pacman 密钥环并同步数据库
 #    Arch 与 Debian/Ubuntu 的关键差异：ALARM 的包用 archlinuxarm 密钥签名，
 #    首次使用必须 init + populate，否则 pacman -Sy 会报「签名未知」。
