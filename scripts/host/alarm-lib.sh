@@ -98,6 +98,33 @@ alarm_chroot_run() {
 }
 
 # ---------------------------------------------------------------------------
+# 关闭 pacman 7.x 的下载沙箱（chroot / 容器内不可用）
+#   ALARM 的 pacman.conf 带 `DownloadUser = alpm`；pacman 7 会为下载用户建立
+#   Landlock + bind-mount 沙箱，并需要判定 cachedir 的挂载点。在 chroot 内判定失败，
+#   实测报错：
+#       error: could not determine cachedir mount point /var/cache/pacman/pkg/download-XXXX
+#       error: failed to commit transaction (not enough free disk space)   ← 空间检查被连带误判
+#   修法：① 注释掉 DownloadUser（回到 6.x 的"以 root 下载"路径，不需要沙箱）
+#         ② 补上 DisableSandbox（pacman 7.0+ 的配置项；未知项只会 warning，不会致命）
+#   注意：ALARM 的 pacman 实测**不支持** `--disable-sandbox` 命令行开关（能力探测已证实），
+#   因此只能走配置文件这条路。
+#   用法: alarm_disable_pacman_sandbox <chroot 根目录>
+# ---------------------------------------------------------------------------
+alarm_disable_pacman_sandbox() {
+  local root="${1:?需要 chroot 根目录}"
+  local conf="$root/etc/pacman.conf"
+  [[ -f "$conf" ]] || { warn "找不到 $conf，跳过 pacman 沙箱设置"; return 0; }
+
+  if ! grep -qE '^[[:space:]]*DisableSandbox' "$conf"; then
+    sed -i '/^\[options\]/a DisableSandbox' "$conf"
+  fi
+  if grep -qE '^[[:space:]]*DownloadUser' "$conf"; then
+    sed -i -E 's|^([[:space:]]*)DownloadUser[[:space:]]*=.*|\1# DownloadUser 已由 archlinux-sheng 注释：chroot 内无法建立下载沙箱|' "$conf"
+  fi
+  log "已关闭 pacman 下载沙箱（DisableSandbox + 注释 DownloadUser）: $conf"
+}
+
+# ---------------------------------------------------------------------------
 # 把 chroot 打成可缓存的 tarball（供 GitHub Actions actions/cache 使用）
 #   用法: alarm_pack_chroot <chroot 根目录> <输出 tarball>
 # ---------------------------------------------------------------------------

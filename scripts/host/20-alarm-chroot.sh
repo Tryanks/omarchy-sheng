@@ -139,21 +139,11 @@ grep -qE '^[[:space:]]*Architecture[[:space:]]*=[[:space:]]*aarch64' "$ALARM_CHR
 }
 
 # ---------------------------------------------------------------------------
-# 2.5) pacman 7.x 的下载沙箱在 chroot/容器里不可用 —— 必须关掉
-#   ALARM 的 pacman.conf 带 `DownloadUser = alpm`，pacman 7 会为下载用户建立
-#   Landlock + bind-mount 沙箱，但在 chroot 里无法判定 cachedir 的挂载点，
-#   实测报错：`error: could not determine cachedir mount point /var/cache/pacman/pkg/download-XXXX`
-#   （另一种表现是 `switching to sandbox user 'alpm' failed`）。
-#   这里按 pacman 是否支持该开关做能力探测，再决定是否写入 DisableSandbox。
+# 2.5) 关闭 pacman 7.x 的下载沙箱（详见 alarm-lib.sh 里 alarm_disable_pacman_sandbox 的说明）
+#   实测失败链：could not determine cachedir mount point → 空间检查误判 → 事务中止。
+#   ALARM 的 pacman 不支持 --disable-sandbox 开关，只能改配置文件。
 # ---------------------------------------------------------------------------
-if alarm_chroot_run "$ALARM_CHROOT" pacman --help 2>/dev/null | grep -q -- '--disable-sandbox'; then
-  if ! grep -qE '^[[:space:]]*DisableSandbox' "$ALARM_CHROOT/etc/pacman.conf"; then
-    log "关闭构建 chroot 的 pacman 下载沙箱（DisableSandbox）"
-    sed -i '/^\[options\]/a DisableSandbox' "$ALARM_CHROOT/etc/pacman.conf"
-  fi
-else
-  warn "当前 pacman 不支持 --disable-sandbox；若随后 pacman -Syu 报 cachedir 挂载点错误，请人工处理"
-fi
+alarm_disable_pacman_sandbox "$ALARM_CHROOT"
 
 # ---------------------------------------------------------------------------
 # 3) 密钥环（只有全新 chroot 才需要）
