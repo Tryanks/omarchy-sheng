@@ -224,11 +224,18 @@ relocate_local_sources() {
 }
 
 # ---------------------------------------------------------------------------
-# 5) 逐包构建
+# 5) 逐包构建（带"安装 + 多轮重试"，用于解决包间依赖）
+#   * 每个包构建成功后，把它装进构建 chroot：这样后续包若 depends 它就能解析
+#     （makepkg -s 只从仓库解析，本地刚构建的包不在仓库里）。
+#     实测场景：xiaomi-pen-status 依赖 xiaomi-sheng-thp，而按目录名排序 thp 在后面。
+#   * 因此失败不再立即 die，而是下一轮重试；多轮后仍失败才报错。
 # ---------------------------------------------------------------------------
 BUILT=()
-for sub in "${PKG_SUBDIRS[@]}"; do
-  startdir="$BUILD_DIR/packages/$sub"
+
+build_one_pkg() {
+  local sub="$1"
+  local startdir="$BUILD_DIR/packages/$sub"
+  local f
   log "构建 packages/$sub"
 
   # 清掉上一轮产物，保证后面"本次构建产出了什么"的判据成立。
@@ -238,7 +245,7 @@ for sub in "${PKG_SUBDIRS[@]}"; do
   find "$ALARM_CHROOT$BUILD_DIR" -maxdepth 5 -name '*.pkg.tar.*' -delete 2>/dev/null || true
 
   alarm_chroot_run "$ALARM_CHROOT" chown -R "${BUILDER_USER}:${BUILDER_USER}" "$startdir" \
-    || die "chown $startdir 失败"
+    || { warn "chown $startdir 失败"; return 1; }
 
   relocate_local_sources "$startdir"
 
@@ -246,13 +253,15 @@ for sub in "${PKG_SUBDIRS[@]}"; do
   # -s：让 makepkg 用 sudo 自动安装缺失的 depends/makedepends
   #     （builder 在 /etc/sudoers.d 里有 NOPASSWD，20-alarm-chroot.sh 已配置）。
   #     缺了 -s 的话 meson/ninja/autoconf/protobuf 这类构建依赖不会被装上，构建必失败。
-  alarm_chroot_run "$ALARM_CHROOT" su - "$BUILDER_USER" -c \
-    "${PKGBUILD_ENV}cd '$startdir' && makepkg -sf --noconfirm --nocolor" \
-    || die "makepkg 构建失败: packages/$sub"
+  if ! alarm_chroot_run "$ALARM_CHROOT" su - "$BUILDER_USER" -c \
+        "${PKGBUILD_ENV}cd '$startdir' && makepkg -sf --noconfirm --nocolor"; then
+    warn "makepkg 失败: packages/$sub"
+    return 1
+  fi
 
   # 收集产物：优先从我们强制的 PKGDEST 取；同时在整个 chroot 里兜底搜索
   # （排除挂载点），并打印实际位置便于诊断。
-  produced=()
+  local produced=()
   while IFS= read -r f; do
     [[ -n "$f" ]] && produced+=("$f")
   done < <(find "$ALARM_CHROOT$MAKEPKG_PKGDEST" -maxdepth 2 -name '*.pkg.tar.*' 2>/dev/null || true)
@@ -266,15 +275,39 @@ for sub in "${PKG_SUBDIRS[@]}"; do
                -not -path "$ALARM_CHROOT/dev/*" 2>/dev/null || true)
   fi
 
-  [[ "${#produced[@]}" -gt 0 ]] || die "packages/$sub 构建后没有产出 *.pkg.tar.*（PKGDEST=$MAKEPKG_PKGDEST，且全 chroot 搜索为空）"
+  if [[ "${#produced[@]}" -eq 0 ]]; then
+    warn "packages/$sub 构建后没有产出 *.pkg.tar.*（PKGDEST=$MAKEPKG_PKGDEST，且全 chroot 搜索为空）"
+    return 1
+  fi
 
   for f in "${produced[@]}"; do
     cp -f "$f" "$PKGS_OUT/"
     BUILT+=("$(basename "$f")")
     log "    → $(basename "$f")   (来自 ${f#"$ALARM_CHROOT"})"
+    # 装进构建 chroot，供后续包的 depends 解析；装不上不致命（可能只是依赖未满足）
+    alarm_chroot_run "$ALARM_CHROOT" pacman -U --noconfirm --needed --color never "${f#"$ALARM_CHROOT"}" \
+      || warn "把 $(basename "$f") 装入构建 chroot 失败（后续依赖它的包可能会失败）"
     rm -f "$f"
   done
+  return 0
+}
+
+PENDING=("${PKG_SUBDIRS[@]}")
+for pass in 1 2 3; do
+  [[ "${#PENDING[@]}" -gt 0 ]] || break
+  log "===== 第 $pass 轮：待构建 ${#PENDING[@]} 个：${PENDING[*]} ====="
+  NEXT=()
+  for sub in "${PENDING[@]}"; do
+    if ! build_one_pkg "$sub"; then
+      NEXT+=("$sub")
+    fi
+  done
+  if [[ "${#NEXT[@]}" -eq "${#PENDING[@]}" ]]; then
+    die "以下包在多轮尝试后仍未构建成功: ${NEXT[*]}"
+  fi
+  PENDING=("${NEXT[@]}")
 done
+[[ "${#PENDING[@]}" -eq 0 ]] || die "以下包仍未构建成功: ${PENDING[*]}"
 
 log "构建完成（${#BUILT[@]} 个产物）："
 ls -lh "$PKGS_OUT" | sed 's/^/    /'
