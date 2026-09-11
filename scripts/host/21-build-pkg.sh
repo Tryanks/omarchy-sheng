@@ -140,6 +140,21 @@ chmod -R a+rX "$ALARM_CHROOT$BUILD_DIR/patches"
 log "同步 patches/ → $ALARM_CHROOT$BUILD_DIR/patches"
 
 install -d "$ALARM_CHROOT$BUILD_DIR/pkgs"
+
+# ---------------------------------------------------------------------------
+# 2.6) 强制 makepkg 的产物目录
+#   实测：ALARM 的 makepkg.conf 把 PKGDEST 指到 $startdir 之外，构建明明成功
+#   （`==> Finished making: ...`）却在 $startdir 与 /build 下都找不到 .pkg.tar.zst。
+#   与其猜它在哪，不如追加一条 PKGDEST 到 makepkg.conf 末尾（后赋值覆盖前面的），
+#   把产物统一到 $BUILD_DIR/pkgs-out，收集逻辑就有了确定位置。
+# ---------------------------------------------------------------------------
+MAKEPKG_PKGDEST="$BUILD_DIR/pkgs-out"
+install -d -m 777 "$ALARM_CHROOT$MAKEPKG_PKGDEST"
+if ! grep -qE "^[[:space:]]*PKGDEST=$MAKEPKG_PKGDEST" "$ALARM_CHROOT/etc/makepkg.conf" 2>/dev/null; then
+  printf '\n# archlinux-sheng：统一产物目录（构建脚本按此路径收集 .pkg.tar.zst）\nPKGDEST=%s\n' \
+    "$MAKEPKG_PKGDEST" >> "$ALARM_CHROOT/etc/makepkg.conf"
+  log "已设置 makepkg PKGDEST=$MAKEPKG_PKGDEST（chroot 内）"
+fi
 if [[ -n "$PKG_PREINSTALL" ]]; then
   log "预装包间依赖到 chroot: $PKG_PREINSTALL"
   for f in $PKG_PREINSTALL; do
@@ -235,18 +250,29 @@ for sub in "${PKG_SUBDIRS[@]}"; do
     "${PKGBUILD_ENV}cd '$startdir' && makepkg -sf --noconfirm --nocolor" \
     || die "makepkg 构建失败: packages/$sub"
 
-  # 收集产物：在整个构建树里找（不假设 PKGDEST == $startdir）
+  # 收集产物：优先从我们强制的 PKGDEST 取；同时在整个 chroot 里兜底搜索
+  # （排除挂载点），并打印实际位置便于诊断。
   produced=()
   while IFS= read -r f; do
     [[ -n "$f" ]] && produced+=("$f")
-  done < <(find "$ALARM_CHROOT$BUILD_DIR" -maxdepth 5 -name '*.pkg.tar.zst' 2>/dev/null || true)
+  done < <(find "$ALARM_CHROOT$MAKEPKG_PKGDEST" -maxdepth 2 -name '*.pkg.tar.zst' 2>/dev/null || true)
 
-  [[ "${#produced[@]}" -gt 0 ]] || die "packages/$sub 构建后没有产出 *.pkg.tar.zst（已在 $BUILD_DIR 下搜索）"
+  if [[ "${#produced[@]}" -eq 0 ]]; then
+    warn "在 $MAKEPKG_PKGDEST 没找到产物，改为全 chroot 搜索"
+    while IFS= read -r f; do
+      [[ -n "$f" ]] && produced+=("$f")
+    done < <(find "$ALARM_CHROOT" -xdev -name '*.pkg.tar.zst' \
+               -not -path "$ALARM_CHROOT/proc/*" -not -path "$ALARM_CHROOT/sys/*" \
+               -not -path "$ALARM_CHROOT/dev/*" 2>/dev/null || true)
+  fi
+
+  [[ "${#produced[@]}" -gt 0 ]] || die "packages/$sub 构建后没有产出 *.pkg.tar.zst（PKGDEST=$MAKEPKG_PKGDEST，且全 chroot 搜索为空）"
 
   for f in "${produced[@]}"; do
     cp -f "$f" "$PKGS_OUT/"
     BUILT+=("$(basename "$f")")
     log "    → $(basename "$f")   (来自 ${f#"$ALARM_CHROOT"})"
+    rm -f "$f"
   done
 done
 
