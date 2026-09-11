@@ -60,6 +60,7 @@ PKG_PREINSTALL="${PKG_PREINSTALL:-}"
 LOCAL_SOURCES_DIR="${LOCAL_SOURCES_DIR:-}"
 MAKEPKG_ENV="${MAKEPKG_ENV:-}"
 KEEP_BUILD="${KEEP_BUILD:-false}"
+MAKEPKG_FLAGS="${MAKEPKG_FLAGS:--sf}"
 ALARM_SKIP_PKGS="${ALARM_SKIP_PKGS:-firmware-xiaomi-sheng}"
 
 [[ "$#" -gt 0 ]] || die "用法: $0 <包目录名> [...] 或 $0 --all"
@@ -250,11 +251,17 @@ build_one_pkg() {
   relocate_local_sources "$startdir"
 
   # makepkg 以 builder 身份执行；PKGBUILD 的 arch=('aarch64') 与 chroot 架构一致
-  # -s：让 makepkg 用 sudo 自动安装缺失的 depends/makedepends
+  # 默认 -sf：让 makepkg 用 sudo 自动安装缺失的 depends/makedepends
   #     （builder 在 /etc/sudoers.d 里有 NOPASSWD，20-alarm-chroot.sh 已配置）。
   #     缺了 -s 的话 meson/ninja/autoconf/protobuf 这类构建依赖不会被装上，构建必失败。
+  # 可通过 MAKEPKG_FLAGS 覆盖为 "-df"（跳过依赖检查）：纯重打包的包
+  #     （如 6 个 xiaomi-* 的 deb→pacman）不需要构建依赖，而它们的 depends 里
+  #     可能包含本仓库在**其它作业**里构建的包（libssc / sheng-sensors /
+  #     sheng-devauth / firmware-xiaomi-sheng），这些包不在本 chroot 的仓库里，
+  #     -s 会因 "Could not resolve all dependencies" 直接失败。运行时依赖仍写在
+  #     包元数据里，装机时由镜像内那一次 pacman -U 批量解析。
   if ! alarm_chroot_run "$ALARM_CHROOT" su - "$BUILDER_USER" -c \
-        "${PKGBUILD_ENV}cd '$startdir' && makepkg -sf --noconfirm --nocolor"; then
+        "${PKGBUILD_ENV}cd '$startdir' && makepkg ${MAKEPKG_FLAGS} --noconfirm --nocolor"; then
     warn "makepkg 失败: packages/$sub"
     return 1
   fi

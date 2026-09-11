@@ -578,7 +578,10 @@ jobs:
           chmod +x scripts/host/22-repack-deb.sh
           # 默认 deb 目录就是 <仓库根>/deb-out；这里显式传一次，便于日志核对
           # 22-repack-deb.sh 内部 require_root（要挂 chroot），必须 sudo
-          sudo bash scripts/host/22-repack-deb.sh deb-out
+          # MAKEPKG_FLAGS=-df：这 6 个包是纯重打包，不需要构建依赖；而它们的 depends
+          # 可能指向本仓库在其它作业里构建的包（libssc/sheng-sensors/sheng-devauth/
+          # firmware-xiaomi-sheng），不在本 chroot 的仓库里，-s 会解析失败。
+          sudo env MAKEPKG_FLAGS="-df" bash scripts/host/22-repack-deb.sh deb-out
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
         run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
