@@ -1,8 +1,12 @@
 # Maintainer: archlinux-sheng
-# 鏉ユ簮锛歨adess/iio-sensor-proxy 3.9 瀹樻柟婧愮爜鍖咃紙gitlab.freedesktop.org 褰掓。 tarball锛?# 涓婃父浣滀笟锛歮eson setup output --prefix=/usr -Db_lto=true -Dssc-support=enabled
-#             -Dsystemdsystemunitdir=/usr/lib/systemd/system 鈫?compile 鈫?meson install
-# 鍘熺敓鍖栬鐐癸細鍙妸 dpkg-deb 鎹㈡垚 makepkg锛?Dssc-support=enabled 渚濊禆鏈粨搴撶殑 libssc锛堝惈 QRTR 绛夊緟琛ヤ竵锛?# 鍖呭悕鍙栬垗锛欰rch/ALARM 瀹樻柟宸叉湁 iio-sensor-proxy锛屽悓鍚嶄細涓庡畼鏂圭増鏈瘮杈冿紝鏁呭姞 -sheng 鍚庣紑骞跺０鏄?#   provides/conflicts=('iio-sensor-proxy')锛堢洰褰曟部鐢ㄤ笂娓搁」鐩悕锛屼究浜庡鐓т笂娓镐綔涓氾級
-# 寰呯‘璁わ細meson 閫夐」 -Dsystemdsystemunitdir 闅忎笂娓哥増鏈洿鍚嶏紱dbus/glib2/libgudev/polkit 涓轰繚瀹堥泦鍚?pkgname=iio-sensor-proxy-sheng
+# 来源：hadess/iio-sensor-proxy 3.9 官方源码包（gitlab.freedesktop.org 归档 tarball）
+# 上游作业：meson setup output --prefix=/usr -Db_lto=true -Dssc-support=enabled
+#             -Dsystemdsystemunitdir=/usr/lib/systemd/system → compile → meson install
+# 原生化要点：只把 dpkg-deb 换成 makepkg；-Dssc-support=enabled 依赖本仓库的 libssc（含 QRTR 等待补丁）
+# 包名取舍：Arch/ALARM 官方已有 iio-sensor-proxy，同名会与官方版本比较，故加 -sheng 后缀并声明
+#   provides/conflicts=('iio-sensor-proxy')（目录沿用上游项目名，便于对照上游作业）
+# 待确认：meson 选项 -Dsystemdsystemunitdir 随上游版本更名；dbus/glib2/libgudev/polkit 为保守集合
+pkgname=iio-sensor-proxy-sheng
 pkgver=3.9
 pkgrel=1
 pkgdesc="IIO sensors to D-Bus proxy with SSC backend, for Xiaomi Pad 6S Pro (sheng)"

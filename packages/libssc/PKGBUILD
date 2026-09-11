@@ -1,11 +1,14 @@
 # Maintainer: archlinux-sheng
-# 鏉ユ簮锛欴ylanVanAssche/libssc锛坈odeberg master锛? 鏈粨搴?patches/wait_for_qmi_service.patch
-# 涓婃父浣滀笟锛歡it clone https://codeberg.org/DylanVanAssche/libssc.git source
-#           patch -Np1 < patches/wait_for_qmi_service.patch锛堜笂娓稿蹇嶅け璐ワ細|| true锛?#           meson setup build --prefix=/usr 鈫?meson compile -C build 鈫?DESTDIR=stage meson install
-# 鍘熺敓鍖栬鐐癸細缂栬瘧娴佺▼涓嶅彉锛屽彧鎶?dpkg-deb 鎹㈡垚 makepkg锛涜ˉ涓佹敼鍒?prepare()锛沺kgver() 浠?meson.build
-#   璇荤湡瀹炵増鏈紙涓婃父 master 鐜颁负 0.4.4锛宒ebian-sheng 鎵撳寘杩?0.4.2锛夛紝閬垮厤鐗堟湰鍙蜂笉涓€鑷?# 鍖呭悕锛氭部鐢?libssc锛坉eb2pkg 鐨勪緷璧栨槧灏勪笌涓変釜浣跨敤鑰呯殑 depends 閮芥寜 libssc 涔﹀啓锛夛紱鑻ユ棩鍚庝笌
-#   ALARM/瀹樻柟 libssc 鐗堟湰姣旇緝鍐茬獊锛屽啀鏀瑰悕 libssc-xiaomi-sheng 骞跺姞 provides/conflicts=('libssc')
-# 寰呯‘璁わ細琛ヤ竵閽堝鏃х増 libssc-client.c 鐢熸垚鈥斺€旇繖閲屼笉鐢ㄤ笂娓哥殑 `|| true`锛屾墦涓嶄笂鍗虫瀯寤哄け璐?#   锛堥潤榛樹涪琛ヤ竵浼氳 sheng 涓?iio-sensor-proxy 杩囨棭鍚姩锛夛紝蹇呰鏃舵妸 source 閽夊埌 #tag=v0.4.2
+# 来源：DylanVanAssche/libssc（codeberg master）+ 本仓库 patches/wait_for_qmi_service.patch
+# 上游作业：git clone https://codeberg.org/DylanVanAssche/libssc.git source
+#           patch -Np1 < patches/wait_for_qmi_service.patch（上游容忍失败：|| true）
+#           meson setup build --prefix=/usr → meson compile -C build → DESTDIR=stage meson install
+# 原生化要点：编译流程不变，只把 dpkg-deb 换成 makepkg；补丁改到 prepare()；pkgver() 从 meson.build
+#   读真实版本（上游 master 现为 0.4.4，debian-sheng 打包过 0.4.2），避免版本号不一致
+# 包名：沿用 libssc（deb2pkg 的依赖映射与三个使用者的 depends 都按 libssc 书写）；若日后与
+#   ALARM/官方 libssc 版本比较冲突，再改名 libssc-xiaomi-sheng 并加 provides/conflicts=('libssc')
+# 待确认：补丁针对旧版 libssc-client.c 生成——这里不用上游的 `|| true`，打不上即构建失败
+#   （静默丢补丁会让 sheng 上 iio-sensor-proxy 过早启动），必要时把 source 钉到 #tag=v0.4.2
 pkgname=libssc
 pkgver=0.4.2
 pkgrel=1
@@ -23,20 +26,20 @@ pkgver() {
   cd "$srcdir/libssc" || exit 1
   local v
   v="$(awk '/^[[:space:]]*version:/{gsub(/[^0-9.]/, ""); print; exit}' meson.build)"
-  [[ -n "$v" ]] || { error "鏃犳硶浠?meson.build 璇诲彇鐗堟湰"; exit 1; }
+  [[ -n "$v" ]] || { error "无法从 meson.build 读取版本"; exit 1; }
   printf '%s' "$v"
 }
 
 prepare() {
   cd "$srcdir/libssc" || exit 1
-  # 绛?QRTR 涓?SSC 鏈嶅姟灏辩华鍐嶆壘鑺傜偣锛坰heng 涓婃湇鍔℃敞鍐屾櫄浜?libssc 鍒濆鍖栵級
-  # 涓?Ubuntu 渚ц剼鏈繚鎸佷竴鑷达細瀹瑰繊琛ヤ竵澶辫触锛堜笂娓稿彲鑳藉凡鍚堝叆锛夛紝浣嗗繀椤荤‖鏍￠獙閲嶈瘯閫昏緫瀛樺湪
+  # 等 QRTR 上 SSC 服务就绪再找节点（sheng 上服务注册晚于 libssc 初始化）
+  # 与 Ubuntu 侧脚本保持一致：容忍补丁失败（上游可能已合入），但必须硬校验重试逻辑存在
   patch -Np1 < "$startdir/../../patches/wait_for_qmi_service.patch" || \
-    warning "wait_for_qmi_service 琛ヤ竵鏈簲鐢紙鍙兘宸插悎鍏ヤ笂娓革級"
-  # 瀹芥澗姝ｅ垯锛氫笂娓告敼鍐欐硶锛坅ttempts / tries / retry锛夋椂涓嶅簲璇姤澶辫触
+    warning "wait_for_qmi_service 补丁未应用（可能已合入上游）"
+  # 宽松正则：上游改写法（attempts / tries / retry）时不应误报失败
   grep -qE 'for[[:space:]]*\([^)]*(attempt|tries|retry)|retry|RETRY' src/libssc-client.c || {
-    error "琛ヤ竵鏈敓鏁堜笖涓婃父婧愮爜涓篃娌℃湁閲嶈瘯閫昏緫锛屼紶鎰熷櫒鍦ㄥ紑鏈烘棭鏈熶細涓嶅彲鐢?
-    error "琛ユ晳锛氭妸 source 閽夊埌宸茬煡鍙敤鐗堟湰锛堝 libssc::git+...#tag=v0.4.2锛夋垨閲嶅仛琛ヤ竵"
+    error "补丁未生效且上游源码中也没有重试逻辑，传感器在开机早期会不可用"
+    error "补救：把 source 钉到已知可用版本（如 libssc::git+...#tag=v0.4.2）或重做补丁"
     exit 1
   }
 }
