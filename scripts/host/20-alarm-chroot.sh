@@ -116,12 +116,22 @@ cat > "$ALARM_CHROOT/etc/pacman.d/mirrorlist" <<EOF
 Server = ${ALARM_MIRROR}/\$arch/\$repo
 EOF
 
-if [[ -f /etc/resolv.conf ]]; then
-  cp -f /etc/resolv.conf "$ALARM_CHROOT/etc/resolv.conf"
+# DNS：chroot 里没有任何 resolver 在跑，必须给它一个可用的 /etc/resolv.conf。
+# 两个已知坑（首次实跑时就是这里失败：chroot 内报 "Could not resolve host"）：
+#   1) ALARM rootfs 里的 /etc/resolv.conf 可能是指向 /run/systemd/resolve/... 的
+#      **悬空软链**（该目录在解包后的 chroot 里不存在），此时 `cp -f` 会跟随软链写失败
+#      → chroot 内根本没有 resolv.conf。必须先 rm -f 破掉软链。
+#   2) 宿主的 resolv.conf 可能只含 systemd-resolved 的 stub（127.0.0.53），
+#      在 chroot 内未必可用 —— 检测到 stub 就改用公共 DNS 兜底。
+rm -f "$ALARM_CHROOT/etc/resolv.conf"
+if [[ -r /etc/resolv.conf ]] && ! grep -qE '^[[:space:]]*nameserver[[:space:]]+127\.0\.0\.53' /etc/resolv.conf; then
+  install -m644 /etc/resolv.conf "$ALARM_CHROOT/etc/resolv.conf"
+  log "已写入 chroot DNS（沿用宿主 resolv.conf）"
 else
-  warn "宿主缺少 /etc/resolv.conf，写入公共 DNS 兜底"
+  warn "宿主 resolv.conf 缺失或只含 127.0.0.53 stub，改用公共 DNS"
   printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > "$ALARM_CHROOT/etc/resolv.conf"
 fi
+log "chroot resolv.conf: $(tr '\n' ' ' < "$ALARM_CHROOT/etc/resolv.conf")"
 
 grep -qE '^[[:space:]]*Architecture[[:space:]]*=[[:space:]]*aarch64' "$ALARM_CHROOT/etc/pacman.conf" || {
   warn "补写 pacman.conf 的 Architecture = aarch64"
