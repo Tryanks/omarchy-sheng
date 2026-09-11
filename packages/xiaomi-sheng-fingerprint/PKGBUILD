@@ -1,0 +1,62 @@
+# Maintainer: archlinux-sheng
+# 来源：ianchb/xiaomi-sheng-fingerprint 的 arm64 release deb（0.1.4，外部包）
+# 上游作业：workflow 用 `gh release download --pattern "*.deb"` 下到本包目录；source 要求文件名为
+#   xiaomi-sheng-fingerprint.deb（下载后改名或用 -O 指定）
+# 原生化要点：私有 libfprint 放 /usr/lib/xiaomi-sheng-fingerprint，经 fprintd 的 systemd drop-in 生效，
+#   不覆盖发行版 libfprint；QTEE listener 沿用 unit 里 LD_LIBRARY_PATH 指向的 Debian multiarch 路径
+#   /usr/lib/aarch64-linux-gnu/qtee-listeners（deb2pkg 不重写该路径，要改必须同时改 unit）
+# 保留 .INSTALL：上游 postinst 的 udevadm trigger --subsystem-match=tee 与 fprintd try-restart 是
+#   pacman hook 不覆盖的语义（服务 enable 仍交给 workflow，理由见 .install 注释）
+# 待确认：libc6→glibc、libglib2.0-0t64→glib2、libgusb2→libgusb，firmware-xiaomi-sheng 取本仓库包；
+#   上游要求 fprintd >= 1.94.5（私有 libfprint 1.94.10，ABI 需匹配）；license 只标自有代码，载荷另含 BSD-3-Clause/LGPL 组件
+pkgname=xiaomi-sheng-fingerprint
+pkgver=0.1.4
+pkgrel=1
+pkgdesc="FPC1553 fingerprint support (QTEE runtime + private libfprint) for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/ianchb/xiaomi-sheng-fingerprint"
+license=('Apache-2.0')
+depends=('firmware-xiaomi-sheng' 'fprintd' 'glibc' 'glib2' 'libgusb')
+install="$pkgname.install"
+options=('!strip' '!debug' '!lto')
+source=("xiaomi-sheng-fingerprint.deb")
+sha256sums=('SKIP')
+
+pkgver() {
+  local tmp ctl v
+  tmp="$(mktemp -d)"
+  bsdtar -xf "$srcdir/xiaomi-sheng-fingerprint.deb" -C "$tmp"
+  ctl="$(find "$tmp" -maxdepth 1 -name 'control.tar*' | head -n1)"
+  v="$(bsdtar -xOf "$ctl" ./control 2>/dev/null | awk -F': ' '/^Version:/{print $2; exit}')"
+  rm -rf "$tmp"
+  [[ -n "$v" ]] || { error "无法从 deb 读取 Version"; exit 1; }
+  printf '%s' "${v//-/_}" | tr -cd '[:alnum:]._+'
+}
+
+package() {
+  # shellcheck source=../_shared/deb2pkg.sh
+  source "$startdir/../_shared/deb2pkg.sh"
+  deb_extract_payload "$srcdir/xiaomi-sheng-fingerprint.deb" "$pkgdir"
+
+  # 校验：QTEE 运行时、fprintd drop-in、udev 规则、私有 libfprint 缺一不可
+  [[ -x "$pkgdir/usr/libexec/qteesupplicant" ]] || {
+    error "载荷缺少 /usr/libexec/qteesupplicant"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/systemd/system/qteesupplicant.service" ]] || {
+    error "载荷缺少 /usr/lib/systemd/system/qteesupplicant.service"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/systemd/system/fprintd.service.d/10-xiaomi-sheng-fpc1553.conf" ]] || {
+    error "载荷缺少 fprintd 的 systemd drop-in，fprintd 不会加载私有 libfprint"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/udev/rules.d/99-qcomtee-fpc.rules" ]] || {
+    error "载荷缺少 /usr/lib/udev/rules.d/99-qcomtee-fpc.rules"
+    exit 1
+  }
+  [[ -e "$pkgdir/usr/lib/xiaomi-sheng-fingerprint/libfprint-2.so.2" ]] || {
+    error "载荷缺少私有 libfprint（/usr/lib/xiaomi-sheng-fingerprint/libfprint-2.so.2）"
+    exit 1
+  }
+}

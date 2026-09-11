@@ -1,0 +1,56 @@
+# Maintainer: archlinux-sheng
+# 来源：DylanVanAssche/libssc（codeberg master）+ 本仓库 patches/wait_for_qmi_service.patch
+# 上游作业：git clone https://codeberg.org/DylanVanAssche/libssc.git source
+#           patch -Np1 < patches/wait_for_qmi_service.patch（上游容忍失败：|| true）
+#           meson setup build --prefix=/usr → meson compile -C build → DESTDIR=stage meson install
+# 原生化要点：编译流程不变，只把 dpkg-deb 换成 makepkg；补丁改到 prepare()；pkgver() 从 meson.build
+#   读真实版本（上游 master 现为 0.4.4，debian-sheng 打包过 0.4.2），避免版本号不一致
+# 包名：沿用 libssc（deb2pkg 的依赖映射与三个使用者的 depends 都按 libssc 书写）；若日后与
+#   ALARM/官方 libssc 版本比较冲突，再改名 libssc-xiaomi-sheng 并加 provides/conflicts=('libssc')
+# 待确认：补丁针对旧版 libssc-client.c 生成——这里不用上游的 `|| true`，打不上即构建失败
+#   （静默丢补丁会让 sheng 上 iio-sensor-proxy 过早启动），必要时把 source 钉到 #tag=v0.4.2
+pkgname=libssc
+pkgver=0.4.2
+pkgrel=1
+pkgdesc="Qualcomm Sensor Core (SSC) client library with QRTR readiness waits, for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://codeberg.org/DylanVanAssche/libssc"
+license=('GPL-3.0-or-later')
+depends=('glib2' 'protobuf-c' 'libqmi' 'libmbim')
+makedepends=('git' 'meson' 'ninja' 'protobuf' 'protobuf-c' 'libqmi' 'libmbim')
+options=('!strip' '!debug' '!lto')
+source=("libssc::git+${LIBSSC_REPO:-https://codeberg.org/DylanVanAssche/libssc.git}")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/libssc"
+  local v
+  v="$(awk '/^[[:space:]]*version:/{gsub(/[^0-9.]/, ""); print; exit}' meson.build)"
+  [[ -n "$v" ]] || { error "无法从 meson.build 读取版本"; exit 1; }
+  printf '%s' "$v"
+}
+
+prepare() {
+  cd "$srcdir/libssc"
+  # 等 QRTR 上 SSC 服务就绪再找节点（sheng 上服务注册晚于 libssc 初始化）
+  # 与 Ubuntu 侧脚本保持一致：容忍补丁失败（上游可能已合入），但必须硬校验重试逻辑存在
+  patch -Np1 < "$startdir/../../patches/wait_for_qmi_service.patch" || \
+    warning "wait_for_qmi_service 补丁未应用（可能已合入上游）"
+  # 宽松正则：上游改写法（attempts / tries / retry）时不应误报失败
+  grep -qE 'for[[:space:]]*\([^)]*(attempt|tries|retry)|retry|RETRY' src/libssc-client.c || {
+    error "补丁未生效且上游源码中也没有重试逻辑，传感器在开机早期会不可用"
+    error "补救：把 source 钉到已知可用版本（如 libssc::git+...#tag=v0.4.2）或重做补丁"
+    exit 1
+  }
+}
+
+build() {
+  cd "$srcdir/libssc"
+  meson setup build --prefix=/usr
+  meson compile -C build
+}
+
+package() {
+  cd "$srcdir/libssc"
+  DESTDIR="$pkgdir" meson install -C build
+}

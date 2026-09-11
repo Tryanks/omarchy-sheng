@@ -1,0 +1,25 @@
+# 构建产物
+*.deb
+*.img
+*.pkg.tar.zst
+*.pkg.tar.xz
+
+# makepkg 目录（PKGBUILD 同级会生成 src/ 与 pkg/）
+src/
+pkg/
+packages/**/src/
+packages/**/pkg/
+packages/**/*.deb
+packages/**/sheng-firmware.tar.zst
+
+# 中间目录
+build/
+debs/
+deb-out/
+pkgs/
+out/
+stage/
+
+# 临时文件
+*.log
+*.tmp

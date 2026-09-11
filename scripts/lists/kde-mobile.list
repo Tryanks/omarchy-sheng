@@ -1,0 +1,20 @@
+# KDE Plasma Mobile（选定 KDE Plasma 时勾选 plasma_mobile 使用）
+# 与 ubuntu-sheng 的 kde-mobile.list 一一对应。
+# Arch 侧 plasma-mobile 在 extra 仓库里（已核实存在），并自带 plasma-nano /
+# plasma-keyboard / plasma-settings 等依赖（这里仍显式列出后两者，因为
+# ubuntu 版也显式列了 settings/keyboard）。
+# 音频相关的 pipewire* / wireplumber 已由 base.list 安装，不重复列。
+plasma-mobile
+plasma-workspace
+plasma-nm
+plasma-pa
+plasma-settings
+plasma-keyboard
+sddm
+konsole
+# 字体与图标（noto-fonts-cjk 提供中日韩字形）
+noto-fonts
+noto-fonts-cjk
+ttf-dejavu
+hicolor-icon-theme
+breeze-icons

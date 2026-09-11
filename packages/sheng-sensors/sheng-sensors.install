@@ -1,0 +1,26 @@
+# 由 Debian 版 postinst 转换而来（ianchb/debian-sheng 的 sheng-sensors 包）
+# 差异说明：
+#   * Debian postinst 里 `[ -d /run/systemd/system ]` 的守卫保留，chroot 安装时不会误触发
+#   * Arch 没有 `udevadm trigger` 之前必须先 reload 的必要，但保持与上游一致
+post_install() {
+  udevadm control --reload 2>/dev/null || true
+  if [ -d /sys/devices/virtual/misc/fastrpc-adsp ]; then
+    udevadm trigger 2>/dev/null || true
+  fi
+  systemctl daemon-reload 2>/dev/null || true
+  if [ -d /run/systemd/system ]; then
+    systemctl try-restart iio-sensor-proxy.service 2>/dev/null || true
+  fi
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_remove() {
+  systemctl daemon-reload 2>/dev/null || true
+}
+
+post_remove() {
+  systemctl daemon-reload 2>/dev/null || true
+}

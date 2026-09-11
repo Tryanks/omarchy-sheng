@@ -1,0 +1,40 @@
+# Maintainer: archlinux-sheng
+# 来源：ianchb/debian-sheng 的 alsa-xiaomi-sheng（Debian 目录树）
+# 原生化要点：
+#   * 载荷来自仓库内 payload/（上游 usr/ 树），不再经过 dpkg-deb
+#   * 上游 conf.d/sm8550/Xiaomi-Pad6SPro.conf 是 symlink；仓库在非 POSIX 文件系统上
+#     可能存成普通文本文件，这里显式重建软链，保证与上游二进制包一致
+pkgname=alsa-xiaomi-sheng
+pkgver=1.0
+pkgrel=1
+pkgdesc="ALSA UCM2 use-case configuration for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/ianchb/debian-sheng"
+license=('custom')
+depends=('alsa-ucm-conf')
+options=('!strip' '!debug' '!lto')
+
+package() {
+  # UCM2 配置树（Xiaomi/sheng/{HiFi.conf,Xiaomi-Pad6SPro.conf}）
+  install -d "$pkgdir/usr/share/alsa/ucm2"
+  cp -a --no-preserve=ownership "$startdir/payload/usr/share/alsa/ucm2/Xiaomi" \
+        "$pkgdir/usr/share/alsa/ucm2/"
+
+  # 平台入口：上游以相对 symlink 指向 Xiaomi/sheng/Xiaomi-Pad6SPro.conf
+  install -d "$pkgdir/usr/share/alsa/ucm2/conf.d/sm8550"
+  rm -f "$pkgdir/usr/share/alsa/ucm2/conf.d/sm8550/Xiaomi-Pad6SPro.conf"
+  ln -s ../../Xiaomi/sheng/Xiaomi-Pad6SPro.conf \
+        "$pkgdir/usr/share/alsa/ucm2/conf.d/sm8550/Xiaomi-Pad6SPro.conf"
+
+  # 兜底：若 payload 里额外带了 conf.d 内容（非 symlink），一并装入
+  if [[ -d "$startdir/payload/usr/share/alsa/ucm2/conf.d" ]]; then
+    find "$startdir/payload/usr/share/alsa/ucm2/conf.d" -type f -print0 |
+      while IFS= read -r -d '' f; do
+        rel="${f#"$startdir/payload/"}"
+        case "$rel" in
+          *Xiaomi-Pad6SPro.conf) continue ;;  # 已用软链处理
+          *) install -Dm644 "$f" "$pkgdir/$rel" ;;
+        esac
+      done
+  fi
+}

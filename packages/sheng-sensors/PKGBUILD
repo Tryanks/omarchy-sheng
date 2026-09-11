@@ -1,0 +1,25 @@
+# Maintainer: archlinux-sheng
+# 来源：ianchb/debian-sheng 的 sheng-sensors-files（Debian 目录树，纯数据文件）
+# 内容：/usr/share/qcom/sm8550/Xiaomi/sheng 下的 SSC 传感器 registry/config、
+#       /usr/share/qcom/conf.d/sheng.yaml、udev 规则、iio-sensor-proxy 的 drop-in
+# 原生化要点：
+#   * 路径与 Debian 版一致（libssc/iio-sensor-proxy 读的是 /usr/share/qcom）
+#   * Debian 的 postinst 改写为 pacman .INSTALL（见 sheng-sensors.install）
+pkgname=sheng-sensors
+pkgver=20240917
+pkgrel=1
+pkgdesc="Qualcomm SSC sensor registry & calibration files for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/ianchb/debian-sheng"
+license=('custom')
+depends=('systemd')
+optdepends=(
+  'iio-sensor-proxy: 读取 /usr/share/qcom 注册表并提供 D-Bus 传感器接口'
+  'libssc: SSC（Slpi Sensor Core）后端'
+)
+install="$pkgname.install"
+options=('!strip' '!debug' '!lto')
+
+package() {
+  cp -a --no-preserve=ownership "$startdir/payload/usr" "$pkgdir/"
+}

@@ -1,0 +1,48 @@
+# Maintainer: archlinux-sheng
+# 来源：ianchb/xiaomi-charger-mode 的 arm64 release deb（0.20，外部包）
+# 上游作业：workflow 用 `gh release download --pattern "*.deb"` 下到本包目录；source 要求文件名为
+#   xiaomi-charger-mode.deb（下载后改名或用 -O 指定）
+# 原生化要点：载荷搬运用 _shared/deb2pkg.sh，pkgver() 读 deb 的 control（静态 pkgver 仅占位：上游
+#   仓库内 DEBIAN/control 写 0.1、release 资产名是 0.20，实际版本以 deb 为准）
+# 不写 .install：上游 postinst/postrm 只有 daemon-reload + systemctl enable，pacman hook 已覆盖
+#   daemon-reload，服务 enable 交给 workflow（沿用 sheng-devauth 约定）
+# 依赖：python/systemd/util-linux（按上游 control 映射）；Recommends: xiaomi-mipps-auth → optdepends
+pkgname=xiaomi-charger-mode
+pkgver=0.20
+pkgrel=1
+pkgdesc="Userspace charger-mode screen & power management for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/ianchb/xiaomi-charger-mode"
+license=('GPL-2.0-only')
+depends=('python' 'systemd' 'util-linux')
+optdepends=('xiaomi-mipps-auth: 充电界面启动时顺带触发 MiPPS/PPS 快充认证')
+options=('!strip' '!debug' '!lto')
+source=("xiaomi-charger-mode.deb")
+sha256sums=('SKIP')
+
+pkgver() {
+  local tmp ctl v
+  tmp="$(mktemp -d)"
+  bsdtar -xf "$srcdir/xiaomi-charger-mode.deb" -C "$tmp"
+  ctl="$(find "$tmp" -maxdepth 1 -name 'control.tar*' | head -n1)"
+  v="$(bsdtar -xOf "$ctl" ./control 2>/dev/null | awk -F': ' '/^Version:/{print $2; exit}')"
+  rm -rf "$tmp"
+  [[ -n "$v" ]] || { error "无法从 deb 读取 Version"; exit 1; }
+  printf '%s' "${v//-/_}" | tr -cd '[:alnum:]._+'
+}
+
+package() {
+  # shellcheck source=../_shared/deb2pkg.sh
+  source "$startdir/../_shared/deb2pkg.sh"
+  deb_extract_payload "$srcdir/xiaomi-charger-mode.deb" "$pkgdir"
+
+  # 校验：主程序与 unit 路径必须存在（unit 的 ExecStart 指向 /usr/libexec/xiaomi-charger-mode）
+  [[ -x "$pkgdir/usr/libexec/xiaomi-charger-mode" ]] || {
+    error "载荷缺少 /usr/libexec/xiaomi-charger-mode"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/systemd/system/xiaomi-charger-mode.service" ]] || {
+    error "载荷缺少 /usr/lib/systemd/system/xiaomi-charger-mode.service"
+    exit 1
+  }
+}

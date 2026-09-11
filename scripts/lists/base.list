@@ -1,0 +1,53 @@
+# 基础系统包（Arch Linux ARM aarch64，全部来自 ALARM 的 core / extra / alarm 仓库）
+# 以 # 开头的行为注释，安装脚本会自动过滤空行与注释。
+#
+# 对应 ubuntu-sheng 的 lists/base.list，差异：
+#   * ALARM tarball 已经提供了「最小系统」（pacman / systemd / glibc / bash / coreutils），
+#     这里只列需要额外补的工具
+#   * 包名按 Arch 惯例：networkmanager（不是 network-manager）、
+#     wpa_supplicant（下划线）、lm_sensors（下划线）、
+#     openssh（不是 openssh-server）、wireless-regdb、glibc（提供 locale）
+#   * Arch 侧的 locale/timezone 与 Debian 不同：没有独立的 locales 包，
+#     locale 由 glibc 的 locale-gen 生成（本仓库的 40-system-config.sh 负责）；
+#     时区数据在 tzdata 包里（已列出，供 timedatectl 使用）
+systemd
+sudo
+kmod
+e2fsprogs
+vim
+nano
+wget
+curl
+ca-certificates
+networkmanager
+openssh
+wpa_supplicant
+dbus
+chrony
+iw
+lm_sensors
+wireless-regdb
+net-tools
+glibc
+tzdata
+# 音频（Arch 默认走 PipeWire；pipewire-alsa 提供 ALSA 兼容层）
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+# 以下为 deb 重打包包的运行期依赖，显式列出便于排查（pacman 也会自动解析）
+# 注意：设备包安装阶段（30-device-packages.sh）会先用 pacman -U 直接装本地包，
+# 依赖不在仓库里就会失败，因此这些运行期依赖必须在基础阶段就装好。
+glib2
+libyaml
+util-linux
+python
+protobuf-c
+libqmi
+libmbim
+libqrtr-glib
+libgudev
+polkit
+libgusb
+fprintd
+libpulse

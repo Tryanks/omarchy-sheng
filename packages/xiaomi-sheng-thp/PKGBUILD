@@ -1,0 +1,48 @@
+# Maintainer: archlinux-sheng
+# 来源：ianchb/xiaomi-sheng-thp 的 arm64 release deb（0.3.9，外部包）
+# 上游作业：workflow 用 `gh release download --pattern "*.deb"` 下到本包目录；source 要求文件名为
+#   xiaomi-sheng-thp.deb（下载后改名或用 -O 指定）
+# 原生化要点：载荷搬运用 _shared/deb2pkg.sh（/lib → /usr/lib 由脚本修正），unit 落在
+#   /usr/lib/systemd/system/xiaomi-sheng-thp.service；不写 .install（上游只做 daemon-reload + enable）
+# 依赖映射：bluez、libc6→glibc、libglib2.0-0t64→glib2、libssc、libstdc++6→gcc-libs、systemd；
+#   Recommends: xiaomi-pen-status → optdepends
+# 待实测确认：内核需暴露 /proc/nvt_thp_raw 等节点与 /dev/uinput（内核前置条件，不在包依赖里）
+pkgname=xiaomi-sheng-thp
+pkgver=0.3.9
+pkgrel=1
+pkgdesc="NT36532E userspace touch processor (finger & Focus Pen input) for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/ianchb/xiaomi-sheng-thp"
+license=('Apache-2.0')
+depends=('bluez' 'glibc' 'glib2' 'libssc' 'gcc-libs' 'systemd')
+optdepends=('xiaomi-pen-status: 触控笔检测、蓝牙连接辅助与刷新率提示（上游 Recommends）')
+options=('!strip' '!debug' '!lto')
+source=("xiaomi-sheng-thp.deb")
+sha256sums=('SKIP')
+
+pkgver() {
+  local tmp ctl v
+  tmp="$(mktemp -d)"
+  bsdtar -xf "$srcdir/xiaomi-sheng-thp.deb" -C "$tmp"
+  ctl="$(find "$tmp" -maxdepth 1 -name 'control.tar*' | head -n1)"
+  v="$(bsdtar -xOf "$ctl" ./control 2>/dev/null | awk -F': ' '/^Version:/{print $2; exit}')"
+  rm -rf "$tmp"
+  [[ -n "$v" ]] || { error "无法从 deb 读取 Version"; exit 1; }
+  printf '%s' "${v//-/_}" | tr -cd '[:alnum:]._+'
+}
+
+package() {
+  # shellcheck source=../_shared/deb2pkg.sh
+  source "$startdir/../_shared/deb2pkg.sh"
+  deb_extract_payload "$srcdir/xiaomi-sheng-thp.deb" "$pkgdir"
+
+  # 校验：unit 的 ExecStart 指向 /usr/libexec/xiaomi-sheng-thp/xiaomi-sheng-thp
+  [[ -x "$pkgdir/usr/libexec/xiaomi-sheng-thp/xiaomi-sheng-thp" ]] || {
+    error "载荷缺少 /usr/libexec/xiaomi-sheng-thp/xiaomi-sheng-thp"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/systemd/system/xiaomi-sheng-thp.service" ]] || {
+    error "载荷缺少 /usr/lib/systemd/system/xiaomi-sheng-thp.service"
+    exit 1
+  }
+}

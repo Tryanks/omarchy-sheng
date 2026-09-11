@@ -1,0 +1,57 @@
+# Maintainer: archlinux-sheng
+# 模式：prebuilt —— 把 ianchb/sm8550-mainline release 里的 linux-xiaomi-sheng*.deb
+#       原生重打包为 pacman 包（内核 + 模块），供 Arch rootfs 直接使用
+# 原生化要点：
+#   * 不做"deb 直接铺文件"，而是解出 data.tar 载荷 + Debian→Arch 布局修正
+#     （/lib/modules → /usr/lib/modules 等，见 _shared/deb2pkg.sh），
+#     由 makepkg 生成 .PKGINFO/.MTREE，因此可 pacman -Q/-R，版本可追踪
+#   * 版本号由 pkgver() 从 deb 的 control 读取，Debian 版本里的 '-' 转为 '_'
+#   * depmod 交给 kmod 的 pacman hook 自动完成（也可由 workflow 在 chroot 内显式执行）
+pkgname=linux-xiaomi-sheng
+pkgver=6.19.0
+pkgrel=1
+pkgdesc="Kernel & modules for Xiaomi Pad 6S Pro (sheng), repacked from the prebuilt Debian package"
+arch=('aarch64')
+url="https://github.com/ianchb/sm8550-mainline"
+license=('GPL-2.0-only')
+depends=('kmod')
+# ALARM 的 rootfs tarball 预装了 stock `linux-aarch64`（7.2.x，含 sm8550-mtp/qrd 的 DTB，
+# 但没有 xiaomi-sheng 的 DTB）。它提供了 `linux`，且与本包的 /usr/lib/modules/<kver>
+# 路径不重叠，共存不会报错但会白占几百 MB。这里按 Arch 打包惯例声明替换关系，
+# 让 pacman 在安装本包时自动移除 stock 内核。
+provides=('linux' 'linux-aarch64')
+conflicts=('linux' 'linux-aarch64')
+options=('!strip' '!debug' '!lto')
+source=("linux-xiaomi-sheng.deb")
+sha256sums=('SKIP')
+
+pkgver() {
+  local tmp ctl v
+  tmp="$(mktemp -d)"
+  bsdtar -xf "$srcdir/linux-xiaomi-sheng.deb" -C "$tmp"
+  ctl="$(find "$tmp" -maxdepth 1 -name 'control.tar*' | head -n1)"
+  v="$(bsdtar -xOf "$ctl" ./control 2>/dev/null | awk -F': ' '/^Version:/{print $2; exit}')"
+  rm -rf "$tmp"
+  [[ -n "$v" ]] || { error "无法从 deb 读取 Version"; exit 1; }
+  printf '%s' "${v//-/_}" | tr -cd '[:alnum:]._+'
+}
+
+package() {
+  # 注意：本 PKGBUILD 在 packages/linux-xiaomi-sheng/prebuilt/ 下，_shared 在 packages/_shared/
+  # shellcheck source=../../_shared/deb2pkg.sh
+  source "$startdir/../../_shared/deb2pkg.sh"
+  deb_extract_payload "$srcdir/linux-xiaomi-sheng.deb" "$pkgdir"
+
+  # 校验：Arch 内核包必须把模块放在 /usr/lib/modules/<kver>
+  local kdir found=0
+  for kdir in "$pkgdir"/usr/lib/modules/*/; do
+    [[ -d "$kdir" ]] || continue
+    found=1
+    rm -rf "${kdir%/}/build" "${kdir%/}/source"
+  done
+  (( found )) || { error "载荷中没有 /usr/lib/modules/<kver>，内核包不可用"; exit 1; }
+
+  # 干净化：Debian 打包残留
+  rm -rf "$pkgdir/DEBIAN" "$pkgdir/var/lib/dpkg" 2>/dev/null || true
+  rm -rf "$pkgdir/usr/share/doc" 2>/dev/null || true
+}

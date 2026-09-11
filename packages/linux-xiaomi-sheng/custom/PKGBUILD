@@ -1,0 +1,42 @@
+# Maintainer: archlinux-sheng
+# 模式：custom_build —— 内核由 workflow 用 ianchb/sm8550-mainline 源码 +
+#       sm8550.config 编译（clang/LLVM，与上游 debian-sheng 的 build-kernel 作业一致），
+#       产物先铺到 $startdir/stage，再由 makepkg 打成原生 pacman 包
+# 原生化要点：
+#   * stage/ 由 scripts/stage-kernel.sh 生成：
+#       stage/usr/lib/modules/<kver>/...        （make modules_install INSTALL_MOD_PATH=stage/usr）
+#       stage/boot/Image.gz-dtb_sheng           （内核+DTB，供 mkbootimg 用）
+#       stage/boot/vmlinuz-linux-xiaomi-sheng   （Arch 惯例命名，仅供参考，启动实际走 boot.img）
+#   * 版本号由 pkgver() 从 stage 里的模块目录名推导
+pkgname=linux-xiaomi-sheng
+pkgver=6.19.0
+pkgrel=1
+pkgdesc="Kernel & modules for Xiaomi Pad 6S Pro (sheng), built from sm8550-mainline source"
+arch=('aarch64')
+url="https://github.com/ianchb/sm8550-mainline"
+license=('GPL-2.0-only')
+depends=('kmod')
+# 与 prebuilt 变体一致：替换 ALARM 预装的 stock `linux-aarch64`（无 sheng DTB）
+provides=('linux' 'linux-aarch64')
+conflicts=('linux' 'linux-aarch64')
+options=('!strip' '!debug' '!lto')
+source=()
+sha256sums=()
+
+pkgver() {
+  local d
+  d="$(find "$startdir/stage/usr/lib/modules" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -n1)"
+  [[ -n "$d" ]] || { error "stage/ 为空：请先运行 scripts/stage-kernel.sh"; exit 1; }
+  printf '%s' "$(basename "$d")" | tr -cd '[:alnum:]._+'
+}
+
+package() {
+  [[ -d "$startdir/stage/usr/lib/modules" ]] || {
+    error "缺少 $startdir/stage/usr/lib/modules；请先运行 scripts/stage-kernel.sh"
+    exit 1
+  }
+  cp -a --no-preserve=ownership "$startdir/stage/." "$pkgdir/"
+
+  # 去掉指向构建目录的软链，避免装到目标机后出现悬空链接
+  find "$pkgdir/usr/lib/modules" -maxdepth 2 \( -name build -o -name source \) -exec rm -rf {} + 2>/dev/null || true
+}

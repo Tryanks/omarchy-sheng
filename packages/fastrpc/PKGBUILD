@@ -1,0 +1,45 @@
+# Maintainer: archlinux-sheng
+# 来源：qualcomm/fastrpc v1.0.2 源码 tag，对应 debian-sheng 的 fastrpc 作业
+# 上游作业：autoreconf -is → ./configure --prefix=/usr → make -j$(nproc) → make DESTDIR=… install
+#           → 追加安装 sensorspd 的 systemd unit
+# 原生化要点：只把 dpkg-deb 换成 makepkg，编译/安装命令保持一致；unit 由本仓库 patches/ 提供
+#   （文件名是 adsprpcd-sensorspd.service，上游脚本文案写作 adsrpcd-…，以文件本体为准）
+# 依赖：Debian 的 libyaml-0-2 / systemd → Arch 的 libyaml / systemd
+# 待确认：sha256sums 用 SKIP（离线未校验）；unit 的 ExecStart=/usr/bin/adsprpcd 需实测核对
+#   打包不 enable 服务（沿用 sheng-devauth 约定），由 workflow 在 chroot 内 systemctl enable
+pkgname=fastrpc
+pkgver=1.0.2
+pkgrel=1
+pkgdesc="Qualcomm FastRPC aDSP RPC daemons & libraries for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/qualcomm/fastrpc"
+license=('BSD-3-Clause')
+depends=('libyaml' 'systemd')
+makedepends=('base-devel' 'autoconf' 'automake' 'libtool' 'pkgconf')
+options=('!strip' '!debug' '!lto')
+source=("fastrpc-1.0.2.zip::https://github.com/qualcomm/fastrpc/archive/refs/tags/v1.0.2.zip")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/fastrpc-1.0.2"
+  autoreconf -is
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+package() {
+  cd "$srcdir/fastrpc-1.0.2"
+  make DESTDIR="$pkgdir" install
+
+  # sensorspd 的 aDSP RPC 守护进程 unit（上游作业从 debian-sheng 的 patches/ 拷入）
+  install -Dm644 "$startdir/../../patches/adsprpcd-sensorspd.service" \
+                 "$pkgdir/usr/lib/systemd/system/adsprpcd-sensorspd.service"
+
+  # 校验：unit 的 ExecStart 指向的二进制必须真的被装上
+  # 注意拼写：二进制与 unit 文件都是 adsprpcd（两个 rp）；上游 workflow 的
+  # enable 步骤把 unit 名写成 adsrpcd-…（少一个 rp），本仓库已按真实文件名处理
+  [[ -x "$pkgdir/usr/bin/adsprpcd" ]] || {
+    error "未安装 /usr/bin/adsprpcd，与 adsprpcd-sensorspd.service 的 ExecStart 不符"
+    exit 1
+  }
+}

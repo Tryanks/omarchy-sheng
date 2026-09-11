@@ -1,0 +1,16 @@
+# Plymouth 开机画面（仅 quiet_boot=true 且 desktop != server 时安装）
+#
+# 与 ubuntu-sheng 的 plymouth.list 对应：
+#   plymouth         → Arch 的 plymouth 在 extra（已核实存在）
+#   plymouth-themes  → Arch 的 plymouth-themes 在 extra（提供 spinner/glow 等主题）
+#   mkinitcpio       → Arch 的 initramfs 生成工具。**不生成 initramfs**（内核
+#                      sm8550.config 里 CONFIG_EXT4_FS=y，可直接挂载 ext4 根分区启动，
+#                      与上游 Debian 版一致）。安装它只是为了用户日后要自己加
+#                      plymouth hook 时有工具可用，见 README「已知限制」。
+plymouth
+plymouth-themes
+mkinitcpio
+# 注意（AUR，构建中不编译）：
+#   plymouth-theme-breeze   仅 AUR
+#   kde-config-plymouth     仅 AUR
+# 20-desktop.sh 会 best-effort 尝试安装这两个包，失败只警告不中断。

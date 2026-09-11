@@ -1,0 +1,47 @@
+# Maintainer: archlinux-sheng
+# 来源：ianchb/xiaomi-pen-status 的 arm64 release deb（0.2.3，外部包）
+# 上游作业：workflow 用 `gh release download --pattern "*.deb"` 下到本包目录；source 要求文件名为
+#   xiaomi-pen-status.deb（下载后改名或用 -O 指定）
+# 原生化要点：载荷搬运用 _shared/deb2pkg.sh；deb 同时装 /usr/share/applications 与 /etc/xdg/autostart
+#   两份 desktop（pacman 把 /etc 下的当配置文件，日后被改动会生成 .pacnew）
+# 依赖映射：libqt6{dbus,network,widgets}6→qt6-base、libqt6svg6→qt6-svg、xiaomi-sheng-thp(>= 0.3.9)；
+#   bluez 经 D-Bus 配对触控笔，上游未列入 Depends → optdepends，待实测确认（托盘图标另需 SNI 宿主）
+# 待确认：上游 LICENSE 为 GPL-2.0 文本（nixos 封装曾误标 MIT）
+pkgname=xiaomi-pen-status
+pkgver=0.2.3
+pkgrel=1
+pkgdesc="Stylus status tray utility for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/ianchb/xiaomi-pen-status"
+license=('GPL-2.0-only')
+depends=('qt6-base' 'qt6-svg' 'xiaomi-sheng-thp')
+optdepends=('bluez: 经 D-Bus 自动配对/连接触控笔（上游 Depends 未列出，待实测确认）')
+options=('!strip' '!debug' '!lto')
+source=("xiaomi-pen-status.deb")
+sha256sums=('SKIP')
+
+pkgver() {
+  local tmp ctl v
+  tmp="$(mktemp -d)"
+  bsdtar -xf "$srcdir/xiaomi-pen-status.deb" -C "$tmp"
+  ctl="$(find "$tmp" -maxdepth 1 -name 'control.tar*' | head -n1)"
+  v="$(bsdtar -xOf "$ctl" ./control 2>/dev/null | awk -F': ' '/^Version:/{print $2; exit}')"
+  rm -rf "$tmp"
+  [[ -n "$v" ]] || { error "无法从 deb 读取 Version"; exit 1; }
+  printf '%s' "${v//-/_}" | tr -cd '[:alnum:]._+'
+}
+
+package() {
+  # shellcheck source=../_shared/deb2pkg.sh
+  source "$startdir/../_shared/deb2pkg.sh"
+  deb_extract_payload "$srcdir/xiaomi-pen-status.deb" "$pkgdir"
+
+  # 校验：主程序与桌面入口
+  [[ -x "$pkgdir/usr/bin/xiaomi-pen-status" ]] || {
+    error "载荷缺少 /usr/bin/xiaomi-pen-status"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/share/applications/xiaomi-pen-status.desktop" ]] || {
+    warning "载荷缺少 desktop 入口，应用菜单里看不到该程序"
+  }
+}

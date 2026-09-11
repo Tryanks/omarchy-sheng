@@ -1,0 +1,37 @@
+# 由 Debian 版 postinst/postrm 转换而来（ianchb/xiaomi-sheng-fingerprint）
+# 为什么这个包需要 .INSTALL 而其它 deb 重打包包不需要：
+#   * 上游 postinst 会对已存在的 tee 设备做 `udevadm trigger`——pacman 的 udev hook 只 reload
+#     规则，不会对已经出现的 /dev/tee0 重新触发，缺了这一步首次安装后要重启才认到指纹设备
+#   * 改动 drop-in 后需要让 fprintd 重新加载私有 libfprint（try-restart），卸载时同理
+# 差异说明：
+#   * Debian 的 deb-systemd-helper/unmask/enable（依赖 init-system-helpers）在 Arch 无对应物，
+#     服务是否 enable 交给 workflow 在 chroot 内决定（沿用 sheng-devauth 的约定），
+#     这里只做 reload / trigger / restart
+#   * 守卫 `[ -d /run/systemd/system ]` 保留：chroot 安装时不会误触发
+post_install() {
+  udevadm control --reload 2>/dev/null || true
+  if [ -e /dev/tee0 ]; then
+    udevadm trigger --subsystem-match=tee 2>/dev/null || true
+  fi
+  systemctl daemon-reload 2>/dev/null || true
+  if [ -d /run/systemd/system ]; then
+    systemctl try-restart qteesupplicant.service 2>/dev/null || true
+    systemctl try-restart fprintd.service 2>/dev/null || true
+  fi
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_remove() {
+  systemctl daemon-reload 2>/dev/null || true
+}
+
+post_remove() {
+  systemctl daemon-reload 2>/dev/null || true
+  if [ -d /run/systemd/system ]; then
+    # drop-in 已随包删除，重启 fprintd 让它回到发行版 libfprint
+    systemctl try-restart fprintd.service 2>/dev/null || true
+  fi
+}

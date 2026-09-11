@@ -1,0 +1,473 @@
+name: Build RootFS (Arch Linux ARM)
+
+# 为小米平板 6S Pro (sheng, SM8550) 构建 Arch Linux ARM (aarch64) rootfs.img + boot.img
+#
+# 结构说明（与上游 ianchb/debian-sheng 的差异）：
+#   * 设备功能包的构建抽到可复用工作流 .github/workflows/_packages.yml，
+#     本文件只负责"组装 rootfs"，避免上游那种每个 workflow 复制一份 600 行作业
+#   * 具体构建步骤全部放在 scripts/ 下的脚本里（宿主 scripts/host、镜像内 scripts/in-chroot），
+#     YAML 仅做编排与参数传递
+#   * 上游的 rootfs-lite.yml（测试用、不上传）在这里合并为一个输入项 upload_artifacts
+#   * Arch 侧全部设备包都是本仓库用 makepkg 构建的原生 pacman 包
+#     （见 packages/ 与 scripts/host/21-build-pkg.sh）
+#
+# 与 ubuntu-sheng 的 rootfs.yml 的差异：
+#   * runner 是原生 arm64（ubuntu-24.04-arm），chroot 进 aarch64 的 Arch 是原生的，
+#     不需要 qemu-user-static / binfmt_misc
+#   * 没有 ubuntu_series 输入（Arch 是滚动发行版，pacman -Syu 取最新）
+#   * browser 默认 firefox（Arch 官方仓库的 firefox 是普通包，没有 snap 过渡包问题）
+#   * 没有 snap 相关步骤（Arch 默认无 snap，因此没有 15-nosnap.sh）
+on:
+  workflow_dispatch:
+    inputs:
+      desktop:
+        description: '桌面环境（server 为无图形界面）'
+        required: true
+        type: choice
+        default: 'KDE Plasma'
+        options:
+          - 'KDE Plasma'
+          - 'GNOME'
+          - 'server'
+      plasma_mobile:
+        description: '使用 plasma-mobile 替代 plasma-desktop（仅 KDE Plasma 生效）'
+        required: false
+        type: boolean
+        default: false
+      browser:
+        description: '浏览器（Arch 官方仓库的 firefox 是普通 pacman 包）'
+        required: false
+        type: choice
+        default: 'firefox'
+        options:
+          - 'none'
+          - 'firefox'
+      autologin:
+        description: '自动登录'
+        required: false
+        type: boolean
+        default: true
+      username:
+        description: '普通用户名'
+        required: false
+        type: string
+        default: 'username'
+      hostname:
+        description: '主机名'
+        required: false
+        type: string
+        default: 'xiaomi-sheng'
+      language:
+        description: '系统语言（locale）'
+        required: false
+        type: choice
+        default: 'None (C.UTF-8)'
+        options:
+          - 'None (C.UTF-8)'
+          - 'en_US.UTF-8'
+          - 'zh_CN.UTF-8'
+          - 'zh_TW.UTF-8'
+          - 'ja_JP.UTF-8'
+          - 'ko_KR.UTF-8'
+          - 'de_DE.UTF-8'
+          - 'fr_FR.UTF-8'
+          - 'es_ES.UTF-8'
+          - 'ru_RU.UTF-8'
+      boot_mode:
+        description: '启动分区模式'
+        required: true
+        type: choice
+        default: 'dual (linux)'
+        options:
+          - 'dual (linux)'
+          - 'single (userdata)'
+          - 'custom'
+      custom_partition:
+        description: '自定义分区名（仅 boot_mode=custom 时需要）'
+        required: false
+        type: string
+        default: ''
+      quiet_boot:
+        description: '安静启动（Plymouth，server 模式忽略）'
+        required: false
+        type: boolean
+        default: true
+      kernel_source:
+        description: '内核来源（custom 分区模式不支持 prebuilt）'
+        required: true
+        type: choice
+        default: 'prebuilt'
+        options:
+          - 'prebuilt'
+          - 'custom_build'
+      kernel_repo:
+        description: '自定义内核仓库（kernel_source=custom_build 时使用）'
+        required: false
+        type: string
+        default: 'https://github.com/ianchb/sm8550-mainline'
+      kernel_branch:
+        description: '内核分支'
+        required: false
+        type: string
+        default: 'sheng-7.2.2'
+      kernel_config:
+        description: '内核配置文件（仓库内文件名）'
+        required: false
+        type: string
+        default: 'sm8550.config'
+      firmware_repo:
+        description: '设备固件仓库'
+        required: false
+        type: string
+        default: 'https://github.com/ianchb/sheng-firmware'
+      firmware_branch:
+        description: '固件仓库分支'
+        required: false
+        type: string
+        default: 'master'
+      rootfs_size:
+        description: 'rootfs.img 初始大小（构建后会收缩，首启自动扩容）'
+        required: false
+        type: string
+        default: '10G'
+      shrink_image:
+        description: '构建后收缩镜像（e2fsck + resize2fs -M）'
+        required: false
+        type: boolean
+        default: true
+      upload_artifacts:
+        description: '上传 rootfs.img / boot.img（测试时可关闭）'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+jobs:
+  packages:
+    name: Build Device Packages (pacman)
+    uses: ./.github/workflows/_packages.yml
+    with:
+      kernel_source: ${{ inputs.kernel_source }}
+      kernel_repo: ${{ inputs.kernel_repo }}
+      kernel_branch: ${{ inputs.kernel_branch }}
+      kernel_config: ${{ inputs.kernel_config }}
+      firmware_repo: ${{ inputs.firmware_repo }}
+      firmware_branch: ${{ inputs.firmware_branch }}
+
+  build-rootfs:
+    name: Assemble Arch Linux ARM RootFS
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    needs: [packages]
+    env:
+      ROOTFS_MOUNT: /mnt/rootfs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Verify Arguments
+        env:
+          ROOTFS_PASSWORD: ${{ secrets.ROOTFS_PASSWORD }}
+          IN_BOOT_MODE: ${{ inputs.boot_mode }}
+          IN_KERNEL_SOURCE: ${{ inputs.kernel_source }}
+          IN_CUSTOM_PARTITION: ${{ inputs.custom_partition }}
+          IN_USERNAME: ${{ inputs.username }}
+          IN_HOSTNAME: ${{ inputs.hostname }}
+        run: |
+          if [ -z "$ROOTFS_PASSWORD" ]; then
+            echo "::warning::未设置 ROOTFS_PASSWORD secret，镜像将使用不安全的默认密码 password"
+          fi
+          if [ "$IN_BOOT_MODE" = "custom" ]; then
+            if [ "$IN_KERNEL_SOURCE" != "custom_build" ]; then
+              echo "::error::boot_mode=custom 必须搭配 kernel_source=custom_build"
+              exit 1
+            fi
+            if [ -z "$IN_CUSTOM_PARTITION" ]; then
+              echo "::error::boot_mode=custom 时必须填写 custom_partition"
+              exit 1
+            fi
+            case "$IN_CUSTOM_PARTITION" in
+              *[!a-zA-Z0-9_-]*) echo "::error::custom_partition 只允许字母数字与 _ -（PARTLABEL 名）"; exit 1 ;;
+            esac
+          fi
+          # 简单校验用户名/主机名，避免把奇怪的字符写进 build.env
+          case "$IN_USERNAME" in
+            ""|*[!a-zA-Z0-9_.-]*) echo "::error::username 只允许字母数字与 _ . -"; exit 1 ;;
+          esac
+          case "$IN_HOSTNAME" in
+            ""|*[!a-zA-Z0-9.-]*) echo "::error::hostname 只允许字母数字与 . -"; exit 1 ;;
+          esac
+
+      - name: Parse Arguments
+        id: parse
+        run: |
+          QUIET="false"
+          if [ "${{ inputs.quiet_boot }}" = "true" ] && [ "${{ inputs.desktop }}" != "server" ]; then
+            QUIET="true"
+          fi
+
+          case "${{ inputs.boot_mode }}" in
+            "single (userdata)")
+              LABEL="userdata"
+              if [ "$QUIET" = "true" ]; then PATTERN="boot_sheng_singleboot_plymouth.img"; else PATTERN="boot_sheng_singleboot.img"; fi
+              ;;
+            "dual (linux)")
+              LABEL="linux"
+              if [ "$QUIET" = "true" ]; then PATTERN="boot_sheng_dualboot_plymouth.img"; else PATTERN="boot_sheng_dualboot.img"; fi
+              ;;
+            "custom")
+              LABEL="${{ inputs.custom_partition }}"
+              PATTERN=""
+              ;;
+            *)
+              echo "::error::未知的 boot_mode: ${{ inputs.boot_mode }}"
+              exit 1
+              ;;
+          esac
+
+          SLUG="$(printf '%s' "${{ inputs.desktop }}" | tr ' ' '-')"
+
+          {
+            echo "label=${LABEL}"
+            echo "quiet_boot_enabled=${QUIET}"
+            echo "boot_img_pattern=${PATTERN}"
+            echo "desktop_slug=${SLUG}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Arch Linux ARM (aarch64) / ${{ inputs.desktop }} / 分区 $LABEL / quiet=$QUIET"
+
+      - name: Install Host Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl git gh e2fsprogs xz-utils zstd \
+            libarchive-tools rsync gzip
+
+      - name: "[Prebuilt] Download Kernel & boot.img"
+        if: inputs.kernel_source != 'custom_build'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BOOT_IMG_PATTERN: ${{ steps.parse.outputs.boot_img_pattern }}
+        run: |
+          chmod +x scripts/host/10-fetch-kernel.sh
+          ./scripts/host/10-fetch-kernel.sh
+
+      - name: "[Custom] Download Kernel Image"
+        if: inputs.kernel_source == 'custom_build'
+        uses: actions/download-artifact@v8
+        with:
+          name: kernel-custom-image
+
+      - name: "[Custom] Generate boot.img"
+        if: inputs.kernel_source == 'custom_build'
+        env:
+          PARTITION_LABEL: ${{ steps.parse.outputs.label }}
+          QUIET_BOOT: ${{ steps.parse.outputs.quiet_boot_enabled }}
+        run: |
+          chmod +x scripts/host/11-make-bootimg.sh
+          ./scripts/host/11-make-bootimg.sh Image.gz-dtb_sheng
+
+      # ---------------------------------------------------------------------
+      # 收集 _packages.yml 产出的全部 pacman 包到 pkgs/
+      # ---------------------------------------------------------------------
+      - name: Collect kernel (prebuilt)
+        if: inputs.kernel_source != 'custom_build'
+        uses: actions/download-artifact@v8
+        with: { name: kernel-prebuilt-pkg, path: pkgs }
+      - name: Collect kernel (custom)
+        if: inputs.kernel_source == 'custom_build'
+        uses: actions/download-artifact@v8
+        with: { name: kernel-custom-pkg, path: pkgs }
+      - name: Collect fastrpc
+        uses: actions/download-artifact@v8
+        with: { name: fastrpc-pkg, path: pkgs }
+      - name: Collect libssc
+        uses: actions/download-artifact@v8
+        with: { name: libssc-pkg, path: pkgs }
+      - name: Collect iio-sensor-proxy
+        uses: actions/download-artifact@v8
+        with: { name: iio-sensor-proxy-pkg, path: pkgs }
+      - name: Collect sheng-sensors
+        uses: actions/download-artifact@v8
+        with: { name: sheng-sensors-pkg, path: pkgs }
+      - name: Collect sheng-devauth
+        uses: actions/download-artifact@v8
+        with: { name: sheng-devauth-pkg, path: pkgs }
+      - name: Collect alsa-xiaomi-sheng
+        uses: actions/download-artifact@v8
+        with: { name: alsa-xiaomi-sheng-pkg, path: pkgs }
+      - name: Collect firmware-xiaomi-sheng
+        uses: actions/download-artifact@v8
+        with: { name: firmware-xiaomi-sheng-pkg, path: pkgs }
+      - name: Collect xiaomi-* packages
+        uses: actions/download-artifact@v8
+        with: { name: xiaomi-pkgs, path: pkgs }
+
+      - name: Verify Collected Packages
+        run: |
+          count="$(find pkgs -maxdepth 1 -name '*.pkg.tar.zst' | wc -l)"
+          echo "共收集到 ${count} 个 pacman 包："
+          ls -lh pkgs/ | sed 's/^/    /'
+
+          # 逐个断言必需包（"总数 >= N" 这种松阈值挡不住"少了一个 artifact"）
+          missing=0
+          for p in linux-xiaomi-sheng fastrpc libssc iio-sensor-proxy-sheng sheng-sensors \
+                   sheng-devauth alsa-xiaomi-sheng firmware-xiaomi-sheng; do
+            if ! compgen -G "pkgs/${p}-*.pkg.tar.zst" >/dev/null; then
+              echo "::error::缺少必需的设备包: ${p}"
+              missing=1
+            fi
+          done
+
+          xiaomi="$(find pkgs -maxdepth 1 -name 'xiaomi-*.pkg.tar.zst' | wc -l)"
+          echo "xiaomi-* 包: ${xiaomi} 个"
+          if [ "$xiaomi" -lt 6 ]; then
+            echo "::warning::xiaomi-* 包少于 6 个（${xiaomi}）：快充/充电模式/触控/手写笔/指纹/键盘 中会有功能缺失"
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          if [ ! -f boot.img ]; then
+            echo "::error::缺少 boot.img"
+            exit 1
+          fi
+
+      - name: Create & Mount RootFS Image
+        run: |
+          chmod +x scripts/host/00-prepare-image.sh
+          sudo bash scripts/host/00-prepare-image.sh rootfs.img "${{ inputs.rootfs_size }}" "$ROOTFS_MOUNT"
+
+      - name: Bootstrap Arch Linux ARM
+        env:
+          ALARM_TARBALL_URL: http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
+          ALARM_MIRROR: http://mirror.archlinuxarm.org
+        run: |
+          chmod +x scripts/host/01-bootstrap-arch.sh
+          sudo env ALARM_TARBALL_URL="$ALARM_TARBALL_URL" ALARM_MIRROR="$ALARM_MIRROR" \
+            bash scripts/host/01-bootstrap-arch.sh "$ROOTFS_MOUNT"
+
+      - name: Mount Chroot Environment
+        run: |
+          chmod +x scripts/host/02-mount-chroot.sh
+          sudo bash scripts/host/02-mount-chroot.sh "$ROOTFS_MOUNT" boot.img
+
+      - name: Write Build Environment
+        run: |
+          sudo tee "$ROOTFS_MOUNT/root/build.env" >/dev/null <<EOF
+          DESKTOP='${{ inputs.desktop }}'
+          PLASMA_MOBILE='${{ inputs.plasma_mobile }}'
+          BROWSER='${{ inputs.browser }}'
+          AUTOLOGIN='${{ inputs.autologin }}'
+          USERNAME='${{ inputs.username }}'
+          HOSTNAME='${{ inputs.hostname }}'
+          LANGUAGE='${{ inputs.language }}'
+          QUIET_BOOT='${{ steps.parse.outputs.quiet_boot_enabled }}'
+          BOOT_MODE='${{ inputs.boot_mode }}'
+          PARTITION_LABEL='${{ steps.parse.outputs.label }}'
+          KERNEL_SOURCE='${{ inputs.kernel_source }}'
+          ARCH='aarch64'
+          EOF
+          sudo chmod 600 "$ROOTFS_MOUNT/root/build.env"
+          echo "build.env 内容："
+          sudo cat "$ROOTFS_MOUNT/root/build.env" | sed 's/^/    /'
+
+      - name: "[chroot] Install Base Packages"
+        run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/10-base.sh
+
+      - name: "[chroot] Install Desktop"
+        run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/20-desktop.sh
+
+      - name: "[chroot] Install Browser"
+        run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/25-browser.sh
+
+      - name: "[chroot] Install Device Packages"
+        run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/30-device-packages.sh
+
+      - name: Prepare Password File
+        env:
+          ROOTFS_PASSWORD: ${{ secrets.ROOTFS_PASSWORD }}
+        run: |
+          if [ -n "$ROOTFS_PASSWORD" ]; then
+            printf '%s' "$ROOTFS_PASSWORD" | sudo tee "$ROOTFS_MOUNT/root/build.pw" >/dev/null
+            sudo chmod 600 "$ROOTFS_MOUNT/root/build.pw"
+          else
+            echo "::warning::ROOTFS_PASSWORD 未设置，镜像密码将是 password"
+          fi
+
+      - name: "[chroot] Configure System"
+        run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/40-system-config.sh
+
+      - name: "[chroot] Verify Image"
+        run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/90-verify.sh
+
+      - name: "[chroot] Clean pacman cache"
+        if: success()
+        run: |
+          # 只清理缓存，不动 /var/lib/pacman/local（已安装包数据库必须保留）；
+          # 放在 verify 之后执行，避免影响校验阶段的 pacman 查询
+          sudo chroot "$ROOTFS_MOUNT" pacman -Scc --noconfirm --color never
+          sudo rm -rf "$ROOTFS_MOUNT/var/cache/pacman/pkg/"* 2>/dev/null || true
+
+      - name: Cleanup Host Files
+        if: always()
+        run: |
+          sudo rm -f "$ROOTFS_MOUNT/etc/resolv.conf" 2>/dev/null || true
+          sudo rm -f "$ROOTFS_MOUNT/root/build.pw" 2>/dev/null || true
+          # 构建脚本与包载荷不该留在出厂镜像里（90-verify 已跑完，可以安全删除）
+          sudo rm -rf "$ROOTFS_MOUNT/root/sheng-build" 2>/dev/null || true
+          sudo rm -rf "$ROOTFS_MOUNT/tmp/pkgs" "$ROOTFS_MOUNT/tmp/debs" 2>/dev/null || true
+
+      - name: Unmount Virtual File Systems
+        if: always()
+        run: sudo bash scripts/host/03-umount-chroot.sh "$ROOTFS_MOUNT"
+
+      - name: Finalize Image
+        if: success()
+        run: |
+          chmod +x scripts/host/04-finalize-image.sh
+          sudo env SHRINK_IMAGE="${{ inputs.shrink_image }}" \
+            bash scripts/host/04-finalize-image.sh rootfs.img "$ROOTFS_MOUNT"
+
+      - name: Upload RootFS Image
+        if: success() && inputs.upload_artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: rootfs-arch-${{ steps.parse.outputs.desktop_slug }}-${{ steps.parse.outputs.label }}
+          path: rootfs.img
+          retention-days: 14
+          compression-level: 1
+          if-no-files-found: error
+
+      - name: Upload Boot Image
+        if: success() && inputs.upload_artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: boot-arch-${{ steps.parse.outputs.desktop_slug }}-${{ steps.parse.outputs.label }}
+          path: boot.img
+          retention-days: 14
+          compression-level: 1
+          if-no-files-found: warn
+
+      - name: Build Summary
+        if: always()
+        run: |
+          {
+            echo "## Arch Linux ARM RootFS 构建结果"
+            echo ""
+            echo "| 项 | 值 |"
+            echo "|---|---|"
+            echo "| 发行版 | Arch Linux ARM (aarch64, 滚动更新) |"
+            echo "| 桌面环境 | ${{ inputs.desktop }}${{ inputs.plasma_mobile && ' (plasma-mobile)' || '' }} |"
+            echo "| 浏览器 | ${{ inputs.browser }} |"
+            echo "| 分区（PARTLABEL） | ${{ steps.parse.outputs.label }} |"
+            echo "| 内核来源 | ${{ inputs.kernel_source }} |"
+            echo "| quiet boot | ${{ steps.parse.outputs.quiet_boot_enabled }} |"
+            echo "| initramfs | 不生成（CONFIG_EXT4_FS=y，可直接挂载 ext4 根分区启动） |"
+            echo "| rootfs.img | $(du -h rootfs.img 2>/dev/null | cut -f1 || echo 'N/A') |"
+            echo "| boot.img | $(du -h boot.img 2>/dev/null | cut -f1 || echo 'N/A') |"
+            echo "| 本地 pacman 包数量 | $(find pkgs -maxdepth 1 -name '*.pkg.tar.zst' 2>/dev/null | wc -l) |"
+          } >> "$GITHUB_STEP_SUMMARY"

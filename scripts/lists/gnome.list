@@ -1,0 +1,25 @@
+# GNOME 桌面（Arch Linux ARM aarch64）
+# 与 ubuntu-sheng 的 gnome.list 一一对应，包名换成 Arch 的：
+#   gnome-terminal（Arch 同名）、gnome-control-center（同名）、nautilus（同名）、
+#   gdm（Arch 用 gdm，不是 Ubuntu 的 gdm3）、gnome-session（同名）
+# Arch 有 gnome 组（group），但组内容会随版本变化，这里显式列关键包更可控。
+# 音频相关的 pipewire* / wireplumber 已由 base.list 安装，不重复列。
+gnome-shell
+gnome-session
+gnome-terminal
+gnome-control-center
+gnome-keyring
+nautilus
+gnome-tweaks
+xdg-desktop-portal-gnome
+gdm
+gdm-libs
+# 桌面基础件（对应 Ubuntu 版的隐含依赖）
+gnome-settings-daemon
+gnome-disk-utility
+gnome-system-monitor
+# 字体与图标（避免首次登录出现方块字；noto-fonts-cjk 提供中日韩字形）
+noto-fonts
+noto-fonts-cjk
+ttf-dejavu
+hicolor-icon-theme

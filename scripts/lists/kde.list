@@ -1,0 +1,24 @@
+# KDE Plasma 桌面（Arch Linux ARM aarch64）
+# 与 ubuntu-sheng 的 kde.list 一一对应，包名换成 Arch 的：
+#   plasma-desktop / plasma-workspace / plasma-nm / sddm / konsole / dolphin / kate
+# 说明：
+#   * 不使用 plasma-meta（Arch 的 Plasma 元包，含大量用不到的可选件）
+#   * plasma-pa 提供音量 applet（Ubuntu 版不需要单列）
+#   * kde-gtk-config / polkit-kde-agent 是 Plasma 会话的常用部件
+#   * 音频相关的 pipewire* / wireplumber 已由 base.list 安装，不重复列
+plasma-desktop
+plasma-workspace
+plasma-nm
+plasma-pa
+sddm
+konsole
+dolphin
+kate
+kde-gtk-config
+polkit-kde-agent
+# 字体与图标（noto-fonts-cjk 提供中日韩字形）
+noto-fonts
+noto-fonts-cjk
+ttf-dejavu
+hicolor-icon-theme
+breeze-icons

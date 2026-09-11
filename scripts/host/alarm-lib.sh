@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# alarm-lib.sh —— 宿主侧 ALARM chroot 公共库
+#
+# 被 host/01-bootstrap-arch.sh 与 host/20-alarm-chroot.sh 共同 source：
+#   * 下载 ALARM aarch64 tarball（多候选地址：官方 os.archlinuxarm.org + 镜像）
+#   * 支持用 tarball 形式缓存 chroot（GitHub Actions 的 actions/cache 无法直接
+#     缓存 /mnt/alarm 下的 root:root 文件，缓存 tar.zst 更可靠；tar 由宿主的
+#     root 解包，权限/所有者天然正确）
+#   * chroot 内执行命令的包装（用于 pacman-key / pacman -Syu / pacstrap 等）
+#
+# 本文件不定义 set -euo pipefail（由调用方设置），也不自己注册 trap：
+# 临时目录由调用方通过 _ALARM_TMP 管理，避免同一 shell 里多个 trap 互相覆盖。
+# shellcheck shell=bash
+
+# ---------------------------------------------------------------------------
+# 下载 ALARM tarball 到指定路径（已存在且非空则跳过，便于缓存复用）
+#   用法: alarm_fetch_tarball <目标路径>
+# ---------------------------------------------------------------------------
+alarm_fetch_tarball() {
+  local dest="${1:?用法: alarm_fetch_tarball <目标路径>}"
+  local dir
+  dir="$(dirname "$dest")"
+  install -d "$dir"
+
+  if [[ -s "$dest" ]]; then
+    log "复用已下载的 tarball: $dest ($(du -h "$dest" | cut -f1))"
+    return 0
+  fi
+
+  local -a candidates=()
+  # 允许用 ALARM_TARBALL_URL 直接覆盖候选列表（与 ubuntu 版的 UBUNTU_BASE_URL 对应）
+  candidates+=("${ALARM_TARBALL_URL}")
+  candidates+=(
+    "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
+    "https://mirrors.tuna.tsinghua.edu.cn/archlinuxarm/os/ArchLinuxARM-aarch64-latest.tar.gz"
+    "https://mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
+  )
+
+  local url ok=0
+  for url in "${candidates[@]}"; do
+    [[ -n "$url" ]] || continue
+    log "尝试下载: $url"
+    if curl -fL --retry 3 --retry-delay 5 --connect-timeout 20 -o "$dest.part" "$url"; then
+      mv -f "$dest.part" "$dest"
+      ok=1
+      break
+    fi
+    warn "该地址不可用，换下一个"
+    rm -f "$dest.part"
+  done
+  [[ "$ok" -eq 1 ]] || die "无法下载 ALARM tarball（候选地址都失败）"
+
+  # 基本健全性校验：确认是可解压的归档，防止把 HTML 错误页当成 tarball 解包。
+  # 官方 ALARM tarball 是 gzip；这里也接受 zstd（社区镜像有 .tar.zst 变体）。
+  if ! gzip -t "$dest" >/dev/null 2>&1 && ! zstd -t "$dest" >/dev/null 2>&1; then
+    rm -f "$dest"
+    die "下载到的文件既不是 gzip 也不是 zstd 归档: $dest"
+  fi
+  log "已下载 ALARM tarball: $dest ($(du -h "$dest" | cut -f1))"
+}
+
+# ---------------------------------------------------------------------------
+# 解包 tarball 到目标目录（优先 bsdtar，可保留 device node / xattr）
+#   用法: alarm_extract_tarball <tarball> <目标目录>
+# ---------------------------------------------------------------------------
+alarm_extract_tarball() {
+  local tarball="${1:?需要 tarball}" dest="${2:?需要目标目录}"
+  [[ -f "$tarball" ]] || die "tarball 不存在: $tarball"
+  install -d "$dest"
+  if command -v bsdtar >/dev/null 2>&1; then
+    bsdtar -xpf "$tarball" -C "$dest"
+  else
+    tar -xpf "$tarball" -C "$dest"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# 宿主路径 → chroot 内路径 的映射
+#   用法: alarm_host_path <chroot 根目录> <chroot 内绝对路径>
+# ---------------------------------------------------------------------------
+alarm_host_path() {
+  local root="${1:?需要 chroot 根目录}" inner="${2:?需要 chroot 内路径}"
+  printf '%s' "${root%/}/${inner#/}"
+}
+
+# ---------------------------------------------------------------------------
+# 在 chroot 内执行命令（不自动清空环境；调用方需要时自行 env -i）
+#   返回被执行命令的退出码；调用方自行决定失败是否致命（加 `|| die ...`）。
+#   注意：chroot 会交换 stdout/stdin，这里的 `die` 不会在子 shell 里执行，
+#   所以必须由调用方处理退出码。
+#   用法: alarm_chroot_run <chroot 根目录> <命令...>
+# ---------------------------------------------------------------------------
+alarm_chroot_run() {
+  local root="${1:?需要 chroot 根目录}"
+  shift
+  [[ "$#" -gt 0 ]] || return 0
+  chroot "$root" "$@"
+}
+
+# ---------------------------------------------------------------------------
+# 把 chroot 打成可缓存的 tarball（供 GitHub Actions actions/cache 使用）
+#   用法: alarm_pack_chroot <chroot 根目录> <输出 tarball>
+# ---------------------------------------------------------------------------
+alarm_pack_chroot() {
+  local root="${1:?需要 chroot 根目录}" out="${2:?需要输出 tarball}"
+  [[ -d "$root" ]] || die "chroot 目录不存在: $root"
+  install -d "$(dirname "$out")"
+  log "打包 chroot 以复用: $out"
+  # --zstd：优先选 zstd（速度快），失败则退回 gzip
+  # 即使调用方已卸载虚拟文件系统，也显式排除 proc/sys/run 与 dev 下的挂载点子目录，
+  # 避免缓存快照里混入宿主内容
+  local -a excl=(
+    --exclude=./proc/*
+    --exclude=./sys/*
+    --exclude=./run/*
+    --exclude=./dev/pts/*
+    --exclude=./dev/shm/*
+  )
+  if ! tar -C "$root" -c -f "$out" --zstd "${excl[@]}" . 2>/dev/null; then
+    tar -C "$root" -c -f "$out" -z "${excl[@]}" .
+  fi
+  log "chroot 已打包: $out ($(du -h "$out" | cut -f1))"
+}
+
+# ---------------------------------------------------------------------------
+# 通过环境变量取任意命令的路径（不依赖 which/command -v）
+#   与 21-build-pkg.sh 里的 _host_cmd 行为一致，但用于 chroot 内（无 $PATH 干扰）
+# ---------------------------------------------------------------------------
+alarm_cmd_path() {
+  local name="${1:?需要命令名}" val
+  val="$(env | awk -F= -v n="$name" '$1==n {sub("^[^=]*=",""); print; exit}')"
+  printf '%s' "${val:-$name}"
+}
+
+# ---------------------------------------------------------------------------
+# 列出 packages/ 下真正的包目录（跳过 _shared 之类以 _ 开头的目录）
+#   用法: mapfile -t dirs < <(alarm_list_pkg_dirs <packages 目录>)
+# ---------------------------------------------------------------------------
+alarm_list_pkg_dirs() {
+  local root="${1:?需要 packages 目录}" d name
+  [[ -d "$root" ]] || die "packages 目录不存在: $root"
+  for d in "$root"/*/; do
+    name="${d%/}"
+    name="${name##*/}"
+    case "$name" in
+      _*) continue ;;
+    esac
+    [[ -f "$d/PKGBUILD" ]] || continue
+    printf '%s\n' "$d"
+  done
+}
+
+# ---------------------------------------------------------------------------
+# 从 PKGBUILD 的 source=() 里抽出条目（含单行与多行写法；去掉引号）
+# 仅供「找出 PKGBUILD 期望的本地载荷文件名」使用，不做完整 shell 解析。
+#   用法: pkgbuild_local_sources <PKGBUILD 路径>
+# ---------------------------------------------------------------------------
+pkgbuild_local_sources() {
+  local pkgbuild="${1:?需要 PKGBUILD 路径}"
+  [[ -f "$pkgbuild" ]] || return 0
+  grep -oE 'source(_[a-zA-Z0-9_]+)?=\([^)]*\)' "$pkgbuild" 2>/dev/null \
+    | sed -e 's/^source\(_[a-zA-Z0-9_]*\)\?=(//' -e 's/)$//' -e "s/[\"']//g" \
+    | tr ' \t' '\n\n' || true
+}

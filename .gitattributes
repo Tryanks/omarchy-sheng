@@ -1,0 +1,25 @@
+# 保证在任何平台上克隆都不会把 shell / python 脚本变成 CRLF
+# （CRLF 会让 makepkg 的 PKGBUILD、#!/usr/bin/env bash 与 mkbootimg 直接失败）
+* text=auto eol=lf
+
+# 二进制/归档文件不做行尾转换
+*.deb binary
+*.img binary
+*.bin binary
+*.elf binary
+*.gz binary
+*.xz binary
+*.zst binary
+*.zstd binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+
+# mkbootimg 是 AOSP 的 Python 脚本，必须保持 LF 与可执行位
+mkbootimg text eol=lf
+
+# 设备侧解析的数据文件：上游就是以 CRLF 提交的（同目录其余 ~250 个文件都是 LF，
+# 所以不是 autocrlf 所致），这些 SCC 传感器寄存器/标定配置必须逐字节保留，
+# 禁用一切行尾转换（否则镜像里的文件与上游不一致，可能影响设备侧解析）。
+packages/sheng-sensors/payload/usr/share/qcom/** -text

@@ -1,0 +1,57 @@
+# Maintainer: archlinux-sheng
+# 来源：ianchb/xiaomi-sheng-keyboard-helper 的 arm64 release deb（0.2.0，外部包）
+# 上游作业：workflow 用 `gh release download --pattern "*.deb"` 下到本包目录；source 要求文件名为
+#   xiaomi-sheng-keyboard-helper.deb（下载后改名或用 -O 指定）
+# 原生化要点：载荷搬运用 _shared/deb2pkg.sh，deb 内路径已是 Arch 布局（/usr/libexec、
+#   /usr/lib/systemd/{system,user}、/usr/lib/udev/rules.d）；不写 .install（上游 postinst 只做
+#   udevadm reload/trigger，重启或重插键盘即可复现同样的 udev 事件）
+# 依赖映射：libc6→glibc、libglib2.0-0t64→glib2、libssc、sheng-sensors、pulseaudio-utils→libpulse
+#   （提供 pactl）、pipewire-pulse、sheng-devauth；init-system-helpers 无 Arch 对应（丢弃）
+# 待确认：user unit 需 workflow 额外执行 `systemctl --global enable …-micmute.service`，
+#   否则麦克风静音指示灯不会跟随音频会话；键盘折角服务也需 systemctl enable
+pkgname=xiaomi-sheng-keyboard-helper
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Keyboard cover helper (fold-angle input gating & mic mute LED) for Xiaomi Pad 6S Pro (sheng)"
+arch=('aarch64')
+url="https://github.com/ianchb/xiaomi-sheng-keyboard-helper"
+license=('Apache-2.0')
+depends=('glibc' 'glib2' 'libssc' 'sheng-sensors' 'libpulse' 'pipewire-pulse' 'sheng-devauth')
+options=('!strip' '!debug' '!lto')
+source=("xiaomi-sheng-keyboard-helper.deb")
+sha256sums=('SKIP')
+
+pkgver() {
+  local tmp ctl v
+  tmp="$(mktemp -d)"
+  bsdtar -xf "$srcdir/xiaomi-sheng-keyboard-helper.deb" -C "$tmp"
+  ctl="$(find "$tmp" -maxdepth 1 -name 'control.tar*' | head -n1)"
+  v="$(bsdtar -xOf "$ctl" ./control 2>/dev/null | awk -F': ' '/^Version:/{print $2; exit}')"
+  rm -rf "$tmp"
+  [[ -n "$v" ]] || { error "无法从 deb 读取 Version"; exit 1; }
+  printf '%s' "${v//-/_}" | tr -cd '[:alnum:]._+'
+}
+
+package() {
+  # shellcheck source=../_shared/deb2pkg.sh
+  source "$startdir/../_shared/deb2pkg.sh"
+  deb_extract_payload "$srcdir/xiaomi-sheng-keyboard-helper.deb" "$pkgdir"
+
+  # 校验：主程序 + system/user 两个 unit + udev 规则
+  [[ -x "$pkgdir/usr/libexec/xiaomi-sheng-keyboard-helper" ]] || {
+    error "载荷缺少 /usr/libexec/xiaomi-sheng-keyboard-helper"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/systemd/system/xiaomi-sheng-keyboard-helper-angle.service" ]] || {
+    error "载荷缺少折角服务的 unit"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/systemd/user/xiaomi-sheng-keyboard-helper-micmute.service" ]] || {
+    error "载荷缺少麦克风指示灯 user unit"
+    exit 1
+  }
+  [[ -f "$pkgdir/usr/lib/udev/rules.d/90-xiaomi-sheng-keyboard-helper.rules" ]] || {
+    error "载荷缺少 /usr/lib/udev/rules.d/90-xiaomi-sheng-keyboard-helper.rules"
+    exit 1
+  }
+}
