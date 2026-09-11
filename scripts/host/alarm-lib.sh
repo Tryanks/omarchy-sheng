@@ -98,6 +98,34 @@ alarm_chroot_run() {
 }
 
 # ---------------------------------------------------------------------------
+# 虚拟文件系统挂载 / 卸载（幂等）
+#   为什么需要：chroot 内没有 systemd，/proc /sys /dev 必须显式挂载。ALARM tarball
+#   自带的 /dev 对非 root 用户不可用（实测 non-root 下 `> /dev/null` 报 Permission denied），
+#   而 makepkg/fakeroot 大量使用重定向 → 必须把宿主的 /dev bind 进去。
+#   ⚠️ 每个用到 chroot 的步骤都要自己挂一次：20-alarm-chroot.sh 在打包快照前会卸载
+#   （否则 /proc /sys 与宿主 /dev 会被打进缓存），因此 21-build-pkg.sh 是另一个进程，
+#   拿到的 chroot 是"干净"的，必须重新挂载。
+#   用法: alarm_mount_virtfs <chroot 根目录> / alarm_umount_virtfs <chroot 根目录>
+# ---------------------------------------------------------------------------
+alarm_mount_virtfs() {
+  local root="${1:?需要 chroot 根目录}"
+  install -d "$root/proc" "$root/sys" "$root/dev/pts"
+  mountpoint -q "$root/proc"     || mount -t proc  proc "$root/proc"     2>/dev/null || warn "挂载 proc 失败: $root/proc"
+  mountpoint -q "$root/sys"      || mount -t sysfs sys  "$root/sys"      2>/dev/null || warn "挂载 sys 失败: $root/sys"
+  mountpoint -q "$root/dev"      || mount --bind /dev     "$root/dev"      2>/dev/null || warn "bind /dev 失败: $root/dev"
+  mountpoint -q "$root/dev/pts"  || mount --bind /dev/pts "$root/dev/pts"  2>/dev/null || warn "bind /dev/pts 失败: $root/dev/pts"
+}
+
+alarm_umount_virtfs() {
+  local root="${1:?需要 chroot 根目录}" d
+  for d in dev/pts dev proc sys; do
+    if mountpoint -q "$root/$d"; then
+      umount "$root/$d" 2>/dev/null || umount -l "$root/$d" 2>/dev/null || true
+    fi
+  done
+}
+
+# ---------------------------------------------------------------------------
 # 关闭 pacman 7.x 的下载沙箱（chroot / 容器内不可用）
 #   ALARM 的 pacman.conf 带 `DownloadUser = alpm`；pacman 7 会为下载用户建立
 #   Landlock + bind-mount 沙箱，并需要判定 cachedir 的挂载点。在 chroot 内判定失败，

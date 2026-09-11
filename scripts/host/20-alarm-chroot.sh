@@ -85,26 +85,10 @@ fi
 #   必须在 pacman-key --init / pacman -Syu 之前挂上：
 #   gpg 的签名校验要读 /dev/urandom，而 ALARM tarball 自带的 /dev 未必完整，
 #   缺失时会表现为 pacman-key 卡住或 "cannot open /dev/urandom"。
-#   makepkg / fakeroot 还需要 /proc。
+#   makepkg / fakeroot 还需要 /proc 与可写的 /dev/null。
+#   函数定义已抽到 alarm-lib.sh（21-build-pkg.sh 也要用），这里传 chroot 根目录。
 # ---------------------------------------------------------------------------
-alarm_mount_virtfs() {
-  install -d "$ALARM_CHROOT/proc" "$ALARM_CHROOT/sys" "$ALARM_CHROOT/dev/pts"
-  mountpoint -q "$ALARM_CHROOT/proc"    || mount -t proc  proc "$ALARM_CHROOT/proc"    2>/dev/null || warn "挂载 proc 失败"
-  mountpoint -q "$ALARM_CHROOT/sys"     || mount -t sysfs sys  "$ALARM_CHROOT/sys"     2>/dev/null || warn "挂载 sys 失败"
-  mountpoint -q "$ALARM_CHROOT/dev"     || mount --bind /dev     "$ALARM_CHROOT/dev"     2>/dev/null || warn "bind /dev 失败"
-  mountpoint -q "$ALARM_CHROOT/dev/pts" || mount --bind /dev/pts "$ALARM_CHROOT/dev/pts" 2>/dev/null || warn "bind /dev/pts 失败"
-}
-
-alarm_umount_virtfs() {
-  local d
-  for d in dev/pts dev proc sys; do
-    if mountpoint -q "$ALARM_CHROOT/$d"; then
-      umount "$ALARM_CHROOT/$d" 2>/dev/null || umount -l "$ALARM_CHROOT/$d" 2>/dev/null || true
-    fi
-  done
-}
-
-alarm_mount_virtfs
+alarm_mount_virtfs "$ALARM_CHROOT"
 
 # ---------------------------------------------------------------------------
 # 2) 镜像源 / DNS / 架构
@@ -202,7 +186,7 @@ chmod 440 "$ALARM_CHROOT/etc/sudoers.d/10-sheng-builder"
 alarm_build_aur_source_pkgs() {
   local entry name url
   [[ -n "$ALARM_AUR_SOURCE_PKGS" ]] || { log "ALARM_AUR_SOURCE_PKGS 为空：跳过源码构建的 AUR 包"; return 0; }
-  alarm_mount_virtfs
+  alarm_mount_virtfs "$ALARM_CHROOT"
   for entry in $ALARM_AUR_SOURCE_PKGS; do
     name="${entry%%|*}"
     url="${entry#*|}"
@@ -217,7 +201,7 @@ alarm_build_aur_source_pkgs() {
     alarm_chroot_run "$ALARM_CHROOT" bash -c "pacman -U --noconfirm /build/aur/$name/*.pkg.tar.zst" \
       || { warn "安装失败: $name"; continue; }
   done
-  alarm_umount_virtfs
+  alarm_umount_virtfs "$ALARM_CHROOT"
   log "AUR 源码包构建完成"
 }
 # 用 `|| warn` 而不是裸调用：这样 $@ 在函数体内保持 set -e（bash 的 set -e 抑制规则）
@@ -245,8 +229,7 @@ alarm_chroot_run "$ALARM_CHROOT" bash -c 'command -v pacman >/dev/null && pacman
 #      否则 tar 会把 /proc、/sys 以及宿主的 /dev（bind mount）一起打进缓存快照，
 #      恢复出来的 chroot 会带着宿主的设备节点，甚至体积暴涨。
 # ---------------------------------------------------------------------------
-alarm_umount_virtfs
-
+alarm_umount_virtfs "$ALARM_CHROOT"
 # ---------------------------------------------------------------------------
 # 8) 可选：打包快照供缓存
 # ---------------------------------------------------------------------------

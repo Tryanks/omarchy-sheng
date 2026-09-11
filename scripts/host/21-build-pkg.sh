@@ -66,6 +66,15 @@ ALARM_SKIP_PKGS="${ALARM_SKIP_PKGS:-firmware-xiaomi-sheng}"
 [[ -x "$ALARM_CHROOT/usr/bin/pacman" ]] || die "构建 chroot 未就绪: $ALARM_CHROOT（先运行 scripts/host/20-alarm-chroot.sh）"
 
 # ---------------------------------------------------------------------------
+# 0) 挂虚拟文件系统（必须自己挂！）
+#   20-alarm-chroot.sh 在"打包缓存快照前"会卸载 /proc /sys /dev（否则宿主内容会被打进快照），
+#   因此本脚本拿到的 chroot 是干净的。而 makepkg/fakeroot 需要 /proc，且 ALARM tarball
+#   自带的 /dev 对非 root 不可用 —— 实测症状是 makepkg 里 `> /dev/null` 报 Permission denied，
+#   最终以 `ERROR: Failed to create the directory $BUILDDIR` 失败。详见 alarm-lib.sh。
+# ---------------------------------------------------------------------------
+alarm_mount_virtfs "$ALARM_CHROOT"
+
+# ---------------------------------------------------------------------------
 # 1) 解析要构建的包目录
 # ---------------------------------------------------------------------------
 PKG_SUBDIRS=()
@@ -228,3 +237,7 @@ done
 
 log "构建完成（${#BUILT[@]} 个产物）："
 ls -lh "$PKGS_OUT" | sed 's/^/    /'
+
+# 卸载虚拟文件系统（保持与 20-alarm-chroot.sh 一致的状态；
+# 后续的"保存 chroot 快照"步骤本身也会再卸载一次，幂等）
+alarm_umount_virtfs "$ALARM_CHROOT"
