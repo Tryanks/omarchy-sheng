@@ -28,7 +28,7 @@
 > 因为宿主机 runner 本身就是 arm64，整个流程**不需要 qemu/binfmt**；
 > 又因为 pacman 用并行下载，Arch 侧比 Ubuntu 侧快得多（同样的桌面安装步骤约 1 分钟）。
 
-**镜像尚未在真机上刷写验证过**；刷写命令与首启判据见 [`docs/troubleshooting.md`](docs/troubleshooting.md)。
+**镜像尚未在真机上刷写验证过。**
 
 ## 快速开始
 
@@ -46,11 +46,15 @@ fastboot flash linux rootfs.img
 fastboot reboot
 ```
 
+6. **首启检查**：`df -h /`（growfs 生效）、`uname -r`（与 `/usr/lib/modules/` 一致）、
+   `dmesg | grep -i -E 'firmware|adreno|ath12k'`、`systemctl status adsprpcd-sensorspd iio-sensor-proxy`、
+   能自动进桌面、`nmcli` 看到 WCN7850、`pacman -Q iio-sensor-proxy-sheng` 有输出，
+   并实测 6 个 `xiaomi-*` 功能（快充 / 关机充电 / 触控与手写笔 / 手写笔状态 / 指纹 / 键盘麦克风指示灯）。
+
 ## 参数说明
 
 输入项与姊妹项目 [ubuntu-sheng](https://github.com/code002-2/ubuntu-sheng) 一一对应，只有两处差异
 （`ubuntu_series` 不存在；`browser` 默认 `firefox`，因为 Arch 官方仓库的 firefox 就是普通包）。
-与上游 `debian-sheng` 的逐项对照见 [`docs/parity-with-upstream.md`](docs/parity-with-upstream.md)。
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
@@ -112,9 +116,6 @@ PKGBUILD + `makepkg` 生成，`postinst` 改写为 pacman 的 `.INSTALL`。
   _packages.yml        workflow_call：10 个作业（内核 prebuilt/custom + 7 个设备包 + xiaomi-* 下载与重打包）
   rootfs.yml           主编排：参数解析 + 组装 rootfs.img / boot.img
   validate.yml         CI 静态自检：bash -n（含 15 个 PKGBUILD）/ shellcheck / YAML 解析 / 目录树
-docs/
-  parity-with-upstream.md   上游各步骤 ↔ 本仓库文件的逐项对照（验收清单）
-  troubleshooting.md        构建排错与首启验收手册
 packages/
   _shared/deb2pkg.sh   deb → pacman 载荷原生化（布局修正 + 依赖映射报告）
   linux-xiaomi-sheng/{prebuilt,custom}/  内核包（重打包 ianchb 的 deb / 打包自编译产物）
@@ -140,14 +141,6 @@ patches/ mkbootimg sm8550.config
 - **SDDM 的 plasma-mobile 会话名**写的是 `plasmamobile`；若停留在登录界面，用
   `ls /usr/share/wayland-sessions/` 核对实际名称。
 - **尚未真机验证**：镜像产出了，但未在设备上刷写与验收。
-
-## 文档
-
-- [`docs/troubleshooting.md`](docs/troubleshooting.md) — 逐步骤的"正常表现 / 失败含义 / 处置"、
-  刷写命令、首启后的设备侧验收判据，以及常用排查命令。
-- [`docs/parity-with-upstream.md`](docs/parity-with-upstream.md) — 上游 `debian-sheng` 每个步骤
-  ↔ 本仓库文件的逐项对照，含明确记录的行为差异与验收状态。
-- README 中的"踩过并已修掉的 ALARM 侧坑"表 — 维护时请勿回退的构建环境修复。
 
 ## 许可与第三方组件
 
