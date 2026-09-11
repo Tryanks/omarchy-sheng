@@ -91,11 +91,15 @@ jobs:
 
       - name: Device package trees
         run: |
-          for d in alsa-xiaomi-sheng sheng-sensors sheng-devauth sheng-sensors-files; do
+          fail=0
+          for d in alsa-xiaomi-sheng sheng-sensors sheng-devauth firmware-xiaomi-sheng; do
             if [ -d "packages/$d/payload" ]; then
               echo "  [ OK ] packages/$d/payload"
             elif [ -f "packages/$d/PKGBUILD" ]; then
-              echo "  [ OK ] packages/$d/PKGBUILD（无 payload，源码或 deb 型）"
+              echo "  [ OK ] packages/$d/PKGBUILD（源码或 deb 型）"
+            else
+              echo "::error::packages/$d 既无 payload 也无 PKGBUILD"
+              fail=1
             fi
           done
           test -f packages/_shared/deb2pkg.sh || { echo "::error::缺少 packages/_shared/deb2pkg.sh"; exit 1; }
@@ -106,3 +110,4 @@ jobs:
           test -f mkbootimg || { echo "::error::缺少 mkbootimg"; exit 1; }
           test -f sm8550.config || { echo "::error::缺少 sm8550.config"; exit 1; }
           echo "Arch 包目录树检查通过"
+          exit $fail

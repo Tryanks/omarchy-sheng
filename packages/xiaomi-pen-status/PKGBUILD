@@ -4,9 +4,9 @@
 #   xiaomi-pen-status.deb（下载后改名或用 -O 指定）
 # 原生化要点：载荷搬运用 _shared/deb2pkg.sh；deb 同时装 /usr/share/applications 与 /etc/xdg/autostart
 #   两份 desktop（pacman 把 /etc 下的当配置文件，日后被改动会生成 .pacnew）
-# 依赖映射：libqt6{dbus,network,widgets}6→qt6-base、libqt6svg6→qt6-svg、xiaomi-sheng-thp(>= 0.3.9)；
-#   bluez 经 D-Bus 配对触控笔，上游未列入 Depends → optdepends，待实测确认（托盘图标另需 SNI 宿主）
-# 待确认：上游 LICENSE 为 GPL-2.0 文本（nixos 封装曾误标 MIT）
+# 依赖映射：libqt6{dbus,network,widgets}6→qt6-base、libqt6svg6→qt6-svg、xiaomi-sheng-thp(>= 0.3.9)
+# bluez 经 D-Bus 配对触控笔，上游未列入 Depends → 列为 optdepends（托盘图标另需 SNI 宿主）
+# license：以上游仓库内的 LICENSE 为准（GPL-2.0 全文；nixos 封装曾误标 MIT）
 pkgname=xiaomi-pen-status
 pkgver=0.2.3
 pkgrel=1

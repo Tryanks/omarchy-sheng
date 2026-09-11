@@ -7,8 +7,9 @@
 #   udevadm reload/trigger，重启或重插键盘即可复现同样的 udev 事件）
 # 依赖映射：libc6→glibc、libglib2.0-0t64→glib2、libssc、sheng-sensors、pulseaudio-utils→libpulse
 #   （提供 pactl）、pipewire-pulse、sheng-devauth；init-system-helpers 无 Arch 对应（丢弃）
-# 待确认：user unit 需 workflow 额外执行 `systemctl --global enable …-micmute.service`，
-#   否则麦克风静音指示灯不会跟随音频会话；键盘折角服务也需 systemctl enable
+# 服务启用：打包阶段不 enable，由 workflow 在 chroot 内执行
+#   （scripts/in-chroot/30-device-packages.sh）：`systemctl enable` 键盘折角服务，
+#   `systemctl --global enable …-micmute.service` 让麦克风静音指示灯跟随音频会话
 pkgname=xiaomi-sheng-keyboard-helper
 pkgver=0.2.0
 pkgrel=1

@@ -5,8 +5,9 @@
 # 原生化要点：只把 dpkg-deb 换成 makepkg，编译/安装命令保持一致；unit 由本仓库 patches/ 提供
 #   （文件名是 adsprpcd-sensorspd.service，上游脚本文案写作 adsrpcd-…，以文件本体为准）
 # 依赖：Debian 的 libyaml-0-2 / systemd → Arch 的 libyaml / systemd
-# 待确认：sha256sums 用 SKIP（离线未校验）；unit 的 ExecStart=/usr/bin/adsprpcd 需实测核对
-#   打包不 enable 服务（沿用 sheng-devauth 约定），由 workflow 在 chroot 内 systemctl enable
+# 校验和：sha256sums 用 SKIP —— 上游 zip 由 GitHub 按 tag 现场生成，归档字节不保证稳定，
+#   故不锚定校验和；unit 的 ExecStart=/usr/bin/adsprpcd 由下方 package() 的 [[ -x ]] 断言保证
+# 打包不 enable 服务（沿用 sheng-devauth 约定），由 workflow 在 chroot 内 systemctl enable
 pkgname=fastrpc
 pkgver=1.0.2
 pkgrel=1
