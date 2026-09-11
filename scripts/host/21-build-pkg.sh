@@ -130,6 +130,15 @@ else
 fi
 chmod -R a+rX "$ALARM_CHROOT$BUILD_DIR/packages"
 
+# patches/ 也必须进 chroot：PKGBUILD 里用的是 `$startdir/../../patches/...`
+# （在 $startdir=/build/packages/<pkg> 时解析为 /build/patches/...），
+# 只拷 packages/ 会导致 fastrpc / libssc 的 package()/prepare() 报
+# "No such file or directory"（实测踩过）。
+install -d "$ALARM_CHROOT$BUILD_DIR/patches"
+cp -a "$REPO_ROOT/patches/." "$ALARM_CHROOT$BUILD_DIR/patches/"
+chmod -R a+rX "$ALARM_CHROOT$BUILD_DIR/patches"
+log "同步 patches/ → $ALARM_CHROOT$BUILD_DIR/patches"
+
 install -d "$ALARM_CHROOT$BUILD_DIR/pkgs"
 if [[ -n "$PKG_PREINSTALL" ]]; then
   log "预装包间依赖到 chroot: $PKG_PREINSTALL"
@@ -207,9 +216,11 @@ for sub in "${PKG_SUBDIRS[@]}"; do
   startdir="$BUILD_DIR/packages/$sub"
   log "构建 packages/$sub"
 
-  # 清掉上一轮产物，保证「构建后一定产出 *.pkg.tar.zst」这个判据成立
+  # 清掉上一轮产物，保证后面"本次构建产出了什么"的判据成立。
+  # 注意：清理范围是**整棵构建树**而不是只看 $startdir —— 实测 ALARM 的 makepkg.conf
+  # 并不把包放在 $startdir（PKGDEST 指向别处），所以判据不能假设位置。
   rm -rf "${ALARM_CHROOT:?}${startdir}/src" "${ALARM_CHROOT:?}${startdir}/pkg" 2>/dev/null || true
-  find "$ALARM_CHROOT$startdir" -maxdepth 1 -name '*.pkg.tar.zst' -delete 2>/dev/null || true
+  find "$ALARM_CHROOT$BUILD_DIR" -maxdepth 5 -name '*.pkg.tar.zst' -delete 2>/dev/null || true
 
   alarm_chroot_run "$ALARM_CHROOT" chown -R "${BUILDER_USER}:${BUILDER_USER}" "$startdir" \
     || die "chown $startdir 失败"
@@ -224,15 +235,19 @@ for sub in "${PKG_SUBDIRS[@]}"; do
     "${PKGBUILD_ENV}cd '$startdir' && makepkg -sf --noconfirm --nocolor" \
     || die "makepkg 构建失败: packages/$sub"
 
-  found=0
-  for f in "$ALARM_CHROOT$startdir"/*.pkg.tar.zst; do
-    [[ -f "$f" ]] || continue
+  # 收集产物：在整个构建树里找（不假设 PKGDEST == $startdir）
+  produced=()
+  while IFS= read -r f; do
+    [[ -n "$f" ]] && produced+=("$f")
+  done < <(find "$ALARM_CHROOT$BUILD_DIR" -maxdepth 5 -name '*.pkg.tar.zst' 2>/dev/null || true)
+
+  [[ "${#produced[@]}" -gt 0 ]] || die "packages/$sub 构建后没有产出 *.pkg.tar.zst（已在 $BUILD_DIR 下搜索）"
+
+  for f in "${produced[@]}"; do
     cp -f "$f" "$PKGS_OUT/"
     BUILT+=("$(basename "$f")")
-    log "    → $(basename "$f")"
-    found=1
+    log "    → $(basename "$f")   (来自 ${f#"$ALARM_CHROOT"})"
   done
-  [[ "$found" -eq 1 ]] || die "packages/$sub 构建后没有产出 *.pkg.tar.zst"
 done
 
 log "构建完成（${#BUILT[@]} 个产物）："
