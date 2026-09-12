@@ -17,6 +17,7 @@
 | **browser** | `firefox` | `none` 则不安装（Arch 官方仓库的 firefox 是普通包） |
 | **autologin** | `true` | 自动登录（GNOME → `/etc/gdm/custom.conf`；KDE → `/etc/sddm.conf.d/autologin.conf`） |
 | **username / hostname** | `username` / `xiaomi-sheng` | 用户加入 `wheel` 组，并写 `/etc/sudoers.d/10-wheel` |
+| **password** | *(空)* | 镜像密码（普通用户与 `root` 同密码）。优先用本输入项；留空则用仓库 Secret `ROOTFS_PASSWORD`；都为空时为 `password`。输入项会 `::add-mask::` 打码，但**值仍显示在该次运行的输入摘要里**，介意请改用 Secret |
 | **language** | `None (C.UTF-8)` | 10 种可选；写 `/etc/locale.conf`（Arch 无 `/etc/default/locale`） |
 | **boot_mode** | `dual (linux)` | `single (userdata)` / `dual (linux)` / `custom` |
 | **custom_partition** | *(空)* | 仅 `boot_mode=custom` 需要，且必须搭配 `kernel_source=custom_build` |

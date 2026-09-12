@@ -57,6 +57,11 @@ on:
         required: false
         type: string
         default: 'xiaomi-sheng'
+      password:
+        description: '镜像密码（留空则用 ROOTFS_PASSWORD secret，都为空则为默认 password）；注意输入值会明文显示在运行页面'
+        required: false
+        type: string
+        default: ''
       language:
         description: '系统语言（locale）'
         required: false
@@ -171,16 +176,32 @@ jobs:
 
       - name: Verify Arguments
         env:
-          ROOTFS_PASSWORD: ${{ secrets.ROOTFS_PASSWORD }}
+          IN_PASSWORD: ${{ inputs.password }}
+          SECRET_PASSWORD: ${{ secrets.ROOTFS_PASSWORD }}
           IN_BOOT_MODE: ${{ inputs.boot_mode }}
           IN_KERNEL_SOURCE: ${{ inputs.kernel_source }}
           IN_CUSTOM_PARTITION: ${{ inputs.custom_partition }}
           IN_USERNAME: ${{ inputs.username }}
           IN_HOSTNAME: ${{ inputs.hostname }}
         run: |
-          if [ -z "$ROOTFS_PASSWORD" ]; then
-            echo "::warning::未设置 ROOTFS_PASSWORD secret，镜像将使用不安全的默认密码 password"
+          # 密码优先级：password 输入项 > ROOTFS_PASSWORD secret > 默认 password。
+          # 输入项不是 secret（会明文显示在本次运行的输入摘要里），因此立刻 add-mask，
+          # 保证它不会出现在后续任何日志中。
+          if [ -n "$IN_PASSWORD" ]; then
+            echo "::add-mask::$IN_PASSWORD"
+            PASSWORD="$IN_PASSWORD"
+            echo "镜像密码取自 password 输入项（该值会显示在本页面的输入摘要中，介意请改用 ROOTFS_PASSWORD secret）"
+          elif [ -n "$SECRET_PASSWORD" ]; then
+            echo "镜像密码取自 ROOTFS_PASSWORD secret"
+            PASSWORD="$SECRET_PASSWORD"
+          else
+            echo "::warning::未设置密码（password 输入与 ROOTFS_PASSWORD secret 均为空），镜像将使用不安全的默认密码 password"
+            PASSWORD=""
           fi
+          case "$PASSWORD" in
+            *$'\n'*) echo "::error::密码不能包含换行"; exit 1 ;;
+          esac
+          echo "ROOTFS_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
           if [ "$IN_BOOT_MODE" = "custom" ]; then
             if [ "$IN_KERNEL_SOURCE" != "custom_build" ]; then
               echo "::error::boot_mode=custom 必须搭配 kernel_source=custom_build"
@@ -388,14 +409,13 @@ jobs:
         run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/30-device-packages.sh
 
       - name: Prepare Password File
-        env:
-          ROOTFS_PASSWORD: ${{ secrets.ROOTFS_PASSWORD }}
         run: |
-          if [ -n "$ROOTFS_PASSWORD" ]; then
+          # ROOTFS_PASSWORD 由 Verify Arguments 写入 $GITHUB_ENV（password 输入项 > secret > 空）
+          if [ -n "${ROOTFS_PASSWORD:-}" ]; then
             printf '%s' "$ROOTFS_PASSWORD" | sudo tee "$ROOTFS_MOUNT/root/build.pw" >/dev/null
             sudo chmod 600 "$ROOTFS_MOUNT/root/build.pw"
           else
-            echo "::warning::ROOTFS_PASSWORD 未设置，镜像密码将是 password"
+            echo "::warning::未设置密码，镜像密码将是 password"
           fi
 
       - name: "[chroot] Configure System"
