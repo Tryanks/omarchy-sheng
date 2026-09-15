@@ -4,9 +4,8 @@
 [![Build RootFS](https://github.com/code002-2/archlinux-sheng/actions/workflows/rootfs.yml/badge.svg?branch=main)](https://github.com/code002-2/archlinux-sheng/actions/workflows/rootfs.yml)
 
 用 **GitHub Actions** 为**小米平板 6S Pro（sheng / 高通 SM8550）**构建 **Arch Linux ARM（aarch64）** 的
-`rootfs.img` 与 `boot.img`，产物可直接用 `fastboot` 刷入设备。构建逻辑移植自
-[ianchb/debian-sheng](https://github.com/ianchb/debian-sheng)，设备功能包全部以 pacman 原生方式打包
-（`makepkg` 产出真正的 pacman 包）。姊妹项目：[ubuntu-sheng](https://github.com/code002-2/ubuntu-sheng)（Ubuntu）。
+`rootfs.img` 与 `boot.img`，产物可直接用 `fastboot` 刷入设备，设备功能包全部以 pacman 原生方式打包
+（`makepkg` 产出真正的 pacman 包）。
 
 ## 参数说明
 
