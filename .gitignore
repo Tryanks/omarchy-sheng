@@ -20,6 +20,9 @@ pkgs/
 out/
 stage/
 
+# 构建 chroot 快照缓存（actions/cache 用的工作区相对路径，见 _packages.yml）
+.chroot-cache/
+
 # 临时文件
 *.log
 *.tmp
