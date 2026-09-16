@@ -4,7 +4,11 @@
 set -euo pipefail
 state=/var/lib/omarchy-sheng/settings-transaction
 paths=(etc/os-release etc/nsswitch.conf etc/security/faillock.conf etc/plymouth/plymouthd.conf
-  etc/skel/.config/hypr/monitors.lua etc/skel/.config/hypr/autostart.lua)
+  etc/skel/.config/hypr/monitors.lua etc/skel/.config/hypr/autostart.lua
+  etc/pam.d/omarchy-lock-password etc/pam.d/omarchy-lock-fingerprint
+  etc/polkit-1/rules.d/00-omarchy-sheng-admin.rules
+  etc/systemd/logind.conf.d/60-omarchy-sheng.conf
+  etc/systemd/sleep.conf.d/60-omarchy-sheng.conf etc/UPower/UPower.conf)
 case "${1:-}" in
   save)
     # Do not replace the recovery copy if an earlier transaction was interrupted.

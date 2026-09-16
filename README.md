@@ -69,6 +69,45 @@ The first real login
 runs unmodified upstream user provisioning with a live DBus/Wayland/user-systemd session.
 The installer never runs `omarchy-apply-system` or changes device partitions.
 
+## Lock, lid, charging and fingerprints
+
+Password locking is configured explicitly. Closing the official keyboard cover
+locks and blanks the display; opening it wakes the display without unlocking.
+System suspend/hibernation is disabled pending investigation of an unexpected
+reset during deep suspend on the test tablet. A closed cover therefore does not
+imply low-power sleep. Battery policy warns at 20%, becomes critical at 10%, and
+requests an orderly poweroff at 5%.
+
+The upstream `xiaomi-charger-mode` service is enabled for
+`androidboot.mode=charger` boots only. It has **not** yet been tested through a
+powered-off charging cycle or battery depletion; enabling it is not proof that
+zero-battery recovery or charging protections are qualified.
+
+Open **Fingerprint Settings / 指纹设置** in the application launcher to enroll,
+verify or delete a power-button fingerprint. The GTK window shows the FPC1553
+sensor's enrollment progress and allows cancellation. Only a successful
+verification followed by administrator authorization enables fingerprint lock
+authentication; password unlock remains available. No fingerprints ship in an
+image. The device's existing fprintd/private-libfprint stack stores the records.
+This integration enables lock-screen authentication, not sudo or polkit bypasses.
+Administrator prompts authenticate the active local wheel user, avoiding the
+ALARM base image's residual `alarm` account.
+
+For existing installations, apply these defaults as root from this checkout:
+
+```sh
+python3 scripts/omarchy/configure-power.py
+install -m755 scripts/omarchy/{verify.sh,verify-power.py,preserve-system.sh} /usr/local/lib/omarchy-sheng/
+install -m644 scripts/omarchy/session.lua /usr/local/lib/omarchy-sheng/session.lua
+systemctl daemon-reload
+systemctl reload systemd-logind
+systemctl restart upower
+```
+
+Reload Hyprland configuration in the desktop session. Existing users must have
+the `session.lua` include in their Hyprland autostart overrides as described
+above. This procedure does not reboot, suspend, start charger mode, or enroll.
+
 ## Updates
 
 Use upstream `omarchy update`. The sheng overlay changes only the package-source

@@ -10,6 +10,12 @@ install -m755 "$HERE/"{package-sources,preserve-system,verify}.sh /usr/local/lib
 install -m755 "$HERE/update.sh" /usr/local/bin/omarchy-update-system-pkgs
 install -m755 "$HERE/update-keyring.sh" /usr/local/bin/omarchy-update-keyring
 install -m644 "$HERE/session.lua" /usr/local/lib/omarchy-sheng/session.lua
+install -m755 "$HERE/verify-power.py" /usr/local/lib/omarchy-sheng/verify-power.py
+install -m755 "$HERE/configure-power.py" /usr/local/lib/omarchy-sheng/configure-power.py
+install -m755 "$HERE/"fingerprint*.py "$HERE/fingerprint-launch.sh" /usr/local/lib/omarchy-sheng/
+install -m644 "$HERE/fingerprint.desktop" /usr/local/lib/omarchy-sheng/
+install -d /usr/local/lib/omarchy-sheng/power
+install -m644 "$HERE/power/"* /usr/local/lib/omarchy-sheng/power/
 # Remove only the aliases from our initial bring-up profile, not upstream files.
 if [[ $(readlink /usr/local/bin/omarchy-update || true) == omarchy-sheng-update ]]; then
   rm /usr/local/bin/omarchy-update
@@ -46,7 +52,14 @@ bash "$HERE/default-apps.sh"
 # Shell settings stay upstream-owned. Only these two user override files differ.
 install -m644 "$HERE/monitors.lua" /etc/skel/.config/hypr/monitors.lua
 printf 'dofile("/usr/local/lib/omarchy-sheng/session.lua")\n' > /etc/skel/.config/hypr/autostart.lua
-/usr/local/lib/omarchy-sheng/verify.sh
+# Image stage 20 precedes the device packages in stage 30. Stage 40 must
+# configure power afterwards; final verification never skips these checks.
+if [[ -f /usr/lib/systemd/system/xiaomi-charger-mode.service ]]; then
+  python3 "$HERE/configure-power.py"
+  /usr/local/lib/omarchy-sheng/verify.sh
+else
+  /usr/local/lib/omarchy-sheng/verify.sh --payload-only
+fi
 install -d /var/lib/omarchy-sheng
 pacman -Q > /var/lib/omarchy-sheng/packages.txt
 echo 'Omarchy payload installed; user creation/session selection is a separate step.'

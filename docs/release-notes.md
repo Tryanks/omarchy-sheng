@@ -6,6 +6,10 @@ device base. This is a community preview, not an official Omarchy release.
 - Upstream Omarchy desktop, first-login provisioning and default application list.
 - ARM package source/keyring integration, touchscreen service enabled, 2x display scale.
 - Software cursor workaround for the internal DSI display.
+- Password lock PAM configured; official keyboard lid uses lock/blank only.
+- Suspend/hibernation disabled after a deep-suspend reset on the test device.
+- Charger-mode service enabled; low battery requests poweroff at 5%.
+- On-screen fingerprint settings with explicit enrollment, verification and deletion.
 - Per-image installed package manifest, source run/revision and SHA-256 checksums.
 
 Default login: **`omarchy` / `omarchy`**. Root initially uses the same password.
@@ -33,8 +37,11 @@ images and recorded as a release overlay in their source metadata.
 
 ## Known limits
 
-Automatic rotation, pen pressure, fingerprint enrollment, cameras, audio quality,
-suspend/resume and fast charging have not been fully qualified. The default
+Automatic rotation, pen pressure, fingerprint enrollment/unlock, cameras, audio quality,
+powered-off charging and fast charging have not been fully qualified. The fingerprint
+driver currently waits for finger removal before reporting a match. Deep suspend
+caused an unexpected reset and is disabled; a closed cover does not mean low-power
+sleep. Charger-mode enablement is not proof of zero-battery recovery. The default
 application list is retained where ARM binaries exist; missing binary targets
 include dotnet-runtime, obs-studio, obsidian, pinta and qemu-user-static-binfmt.
 The installed image records omissions in

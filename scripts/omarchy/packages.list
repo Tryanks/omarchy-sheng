@@ -1,6 +1,8 @@
 # Runtime prerequisites, followed by the installed upstream default application list.
 xdg-user-dirs
 xdg-utils
+python-gobject
+gtk4
 xdg-desktop-portal-gtk
 nautilus
 gvfs

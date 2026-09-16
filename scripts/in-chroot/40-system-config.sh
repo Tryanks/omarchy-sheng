@@ -117,6 +117,7 @@ systemctl enable NetworkManager.service || warn "启用 NetworkManager 失败"
 # ---------------------------------------------------------------------------
 case "$DESKTOP" in
   Omarchy)
+    python3 /usr/local/lib/omarchy-sheng/configure-power.py
     if [[ "$AUTOLOGIN" == "true" ]]; then
       install -d /etc/sddm.conf.d
       printf '[Autologin]\nUser=%s\nSession=omarchy.desktop\n' "$USERNAME" > /etc/sddm.conf.d/autologin.conf

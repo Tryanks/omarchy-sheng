@@ -13,7 +13,7 @@ on:
       tag:
         description: Release tag
         required: true
-        default: v0.1.0-preview.1
+        default: v0.1.0-preview.2
         type: string
 permissions:
   contents: write
@@ -46,12 +46,15 @@ jobs:
             gh run download "$run" -n "rootfs-arch-Omarchy-$label" -D work
             gh run download "$run" -n "boot-arch-Omarchy-$label" -D work
             (cd work && sha256sum -c SHA256SUMS)
-            # Refresh the stateless post-update verifier with the sudo-runtime
-            # fix. Record this release overlay separately from the CI rootfs SHA.
+            # Apply the reviewed device overlay to both layouts. No services
+            # are started and no boot/kernel bytes are changed in this stage.
             mkdir work/mount
             trap 'sudo umount work/mount/proc work/mount/dev work/mount 2>/dev/null || true' EXIT
             sudo mount -o loop work/rootfs.img work/mount
             sudo install -m755 scripts/omarchy/verify.sh work/mount/usr/local/lib/omarchy-sheng/verify.sh
+            sudo install -m755 scripts/omarchy/verify-power.py scripts/omarchy/preserve-system.sh work/mount/usr/local/lib/omarchy-sheng/
+            sudo install -m644 scripts/omarchy/session.lua work/mount/usr/local/lib/omarchy-sheng/session.lua
+            sudo python3 scripts/omarchy/configure-power.py work/mount
             sudo mount --bind /dev work/mount/dev
             sudo mount -t proc proc work/mount/proc
             sudo chroot work/mount env -u XDG_RUNTIME_DIR /usr/local/lib/omarchy-sheng/verify.sh
@@ -63,7 +66,7 @@ jobs:
             cp work/boot.img "release/$prefix-boot.img"
             cp work/packages.txt "release/$prefix-packages.txt"
             gh run view "$run" --json headSha,url | jq --arg sha "$GITHUB_SHA" \
-              '. + {releaseOverlaySha: $sha, overlayFiles: ["/usr/local/lib/omarchy-sheng/verify.sh"]}' \
+              '. + {releaseOverlaySha: $sha, overlay: "sheng-power-lock-v1", overlayFiles: ["/usr/local/lib/omarchy-sheng/verify.sh", "/usr/local/lib/omarchy-sheng/verify-power.py", "/usr/local/lib/omarchy-sheng/preserve-system.sh", "/usr/local/lib/omarchy-sheng/session.lua", "/usr/local/lib/omarchy-sheng/lid.sh", "/usr/local/lib/omarchy-sheng/fingerprint-ui.py", "/usr/local/lib/omarchy-sheng/fingerprint-auth.py", "/usr/local/lib/omarchy-sheng/fingerprint_ops.py", "/usr/local/bin/omarchy-setup-security-fingerprint", "/usr/local/share/applications/omarchy-sheng-fingerprint.desktop", "/etc/polkit-1/rules.d/00-omarchy-sheng-admin.rules", "/etc/pam.d/omarchy-lock-password", "/etc/systemd/logind.conf.d/60-omarchy-sheng.conf", "/etc/systemd/sleep.conf.d/60-omarchy-sheng.conf", "/etc/UPower/UPower.conf", "/etc/systemd/system/sysinit.target.wants/xiaomi-charger-mode.service"]}' \
               > "release/$prefix-source.json"
             # GitHub limits individual assets to 2 GiB. Split large compressed images.
             if (( $(stat -c%s "release/$prefix-rootfs.img.zst") > 1900000000 )); then

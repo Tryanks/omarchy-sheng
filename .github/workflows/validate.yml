@@ -120,3 +120,8 @@ jobs:
 
       - name: Ext4 finalization regression
         run: sudo bash tests/finalize-image.sh
+
+      - name: Lock and power policy regression
+        run: |
+          python3 tests/power-config.py
+          python3 tests/fingerprint-operations.py

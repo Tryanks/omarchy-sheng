@@ -67,3 +67,54 @@ the PC kernel-modules-hook are excluded because sheng owns those device paths.
 
 The upstream package's `version` file still says `4.0.0.alpha`; `pacman -Q omarchy`
 is the authoritative installed package version used for this report.
+
+## Power and lock follow-up (2026-09-17)
+
+The first bring-up did not configure `/etc/pam.d/omarchy-lock-password`.
+`omarchy-system-sleep-lock` reproduced the reported failure with exit 1 and
+`passwordPam=false`. Installing the upstream password PAM policy changed the
+same live check to exit 0 / `secure=true`; the user then unlocked successfully.
+The idle timers alone had not proved that locking actually worked.
+
+Closing the cover reported `Lid closed` through gpio-keys/logind. At 02:59:38
+the lock reported `secure=true`, followed by `PM: suspend entry (deep)`; logging
+ended there and a new boot began at 02:59:54. There was no normal shutdown
+sequence and no retained pstore crash log. The exact reset cause is unknown.
+The overlay now disables system suspend/hibernation and makes the gpio-keys
+cover binding lock/blank only. Live logind reports `CanSuspend=no` and
+`HandleLidSwitch=ignore`. Physical cover behavior with this mitigation still
+needs confirmation; no further suspend test was performed.
+
+`xiaomi-charger-mode` 0.20-1 was installed but disabled. It is now enabled only
+for the upstream `androidboot.mode=charger` condition. No powered-off charging
+or battery-depletion test has been performed. UPower uses percentage-based
+20/10/5 thresholds and PowerOff at the action threshold; this is a software
+policy, not validation of hardware charge protection.
+
+fprintd detects FPC1553. One enrollment stage was captured, but enrollment was
+cancelled before completion when the user requested an on-screen management
+flow. The new GTK settings window was launched and visually inspected on the
+tablet. It exposes enrollment progress, verification and deletion; full
+enrollment and fingerprint unlock are not yet hardware-qualified. Password
+authentication remains configured throughout. The old `grep -qi finger`
+probe wrongly accepted `no fingers enrolled`, causing repeated PAM failures;
+new images leave fingerprint PAM absent until explicit setup succeeds.
+
+The user subsequently reported successful enrollment and a matching verification
+in the GTK window, followed by a rejected administrator password. Polkit logs
+showed it was authenticating ALARM's residual `alarm` wheel member, not the
+logged-in `omarchy` user. A local admin-identity rule now selects the active local
+wheel user without bypassing authentication. End-to-end fingerprint unlock and
+real lock-screen behavior remain pending confirmation. Enrollment and verification
+subsequently completed and the explicit fingerprint PAM marker is present.
+
+The initial UI deleted the last record before asking for authorization to disable
+fingerprint PAM. The user cancelled that prompt, but deletion had already happened.
+The sequence now authorizes first; a regression verifies cancellation leaves the
+record untouched.
+
+The user reports results arrive only after lifting the finger. The installed
+upstream xiaomi-sheng-fingerprint v0.1.4 driver explicitly waits for finger lift
+after a match in both run_verify and run_identify before reporting completion.
+See the [pinned driver patch](https://github.com/ianchb/xiaomi-sheng-fingerprint/blob/76e7301163b0e708f609c9864b3e5833e9f57402/patches/libfprint/0001-libfprint-add-fpc1553.patch).
+Immediate touch-to-unlock has not been implemented; the device driver is unchanged.

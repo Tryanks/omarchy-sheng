@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Fingerprint Settings
+Name[zh_CN]=指纹设置
+Comment=Enroll, verify and remove power-button fingerprints
+Comment[zh_CN]=录入、验证和删除电源键指纹
+Exec=/usr/local/bin/omarchy-setup-security-fingerprint
+Icon=fingerprint
+Terminal=false
+Categories=Settings;Security;
