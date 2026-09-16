@@ -19,7 +19,7 @@ install -m755 "$HERE/configure-power.py" /usr/local/lib/omarchy-sheng/configure-
 install -m755 "$HERE/"fingerprint*.py "$HERE/fingerprint-launch.sh" /usr/local/lib/omarchy-sheng/
 install -m644 "$HERE/fingerprint.desktop" /usr/local/lib/omarchy-sheng/
 install -d /usr/local/lib/omarchy-sheng/power
-install -m644 "$HERE/power/"* /usr/local/lib/omarchy-sheng/power/
+find "$HERE/power" -maxdepth 1 -type f -exec install -m644 {} /usr/local/lib/omarchy-sheng/power/ \;
 # Remove only the aliases from our initial bring-up profile, not upstream files.
 if [[ $(readlink /usr/local/bin/omarchy-update || true) == omarchy-sheng-update ]]; then
   rm /usr/local/bin/omarchy-update
