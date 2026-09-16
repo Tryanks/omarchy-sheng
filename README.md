@@ -30,6 +30,29 @@ images contain no personal SSH keys or Wi-Fi credentials. Only Omarchy is
 installed in Omarchy images; the KDE desktop is not bundled (upstream apps such
 as Kdenlive can depend on KDE libraries).
 
+## Build locally on ARM64 Linux
+
+`scripts/build-local.sh` runs the same bootstrap, installation, device setup and
+verification stages as CI. On an ARM Mac, run it inside a native ARM64 Linux VM
+(such as OrbStack). It does not run directly on macOS.
+
+Supply a flat directory of the device `.pkg.tar.*` artifacts and a matching
+single-system or dual-boot `boot.img` from the same kernel release:
+
+```sh
+sudo env ALARM_TARBALL_PATH=/path/to/ArchLinuxARM-aarch64-latest.tar.gz \
+  PACMAN_CACHE_DIR=/path/to/pacman-cache \
+  bash scripts/build-local.sh /path/to/device-packages /path/to/boot.img \
+  /path/to/new-output-directory userdata
+```
+
+Use `linux` instead of `userdata` for dual boot. The output directory must not
+already exist. The builder creates a fresh image, reuses signed package downloads,
+and produces checksums and a package manifest. Device packages can be built using
+`packages/` or reused from a matching CI run; the rootfs is assembled locally.
+Default local settings are Omarchy, Chinese locale, and `omarchy` / `omarchy`.
+Wi-Fi credentials and private access configuration are never part of this builder.
+
 ## Existing sheng Arch installation
 
 Back up configuration and record `pacman -Q` first. As root on **aarch64 ALARM**:
