@@ -411,7 +411,9 @@ jobs:
       - name: Mount Chroot Environment
         run: |
           chmod +x scripts/host/02-mount-chroot.sh
-          sudo bash scripts/host/02-mount-chroot.sh "$ROOTFS_MOUNT" boot.img
+          # ROOTFS_BASE 必须透传：脚本按它选择 scripts/lists 还是 scripts/lists-holo
+          # （sudo 会重置环境，不显式传就会退回默认的 ALARM 包列表）
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/02-mount-chroot.sh "$ROOTFS_MOUNT" boot.img
 
       - name: Write Build Environment
         run: |

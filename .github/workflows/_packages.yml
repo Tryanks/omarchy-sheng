@@ -590,7 +590,7 @@ jobs:
           # MAKEPKG_FLAGS=-df：这 6 个包是纯重打包，不需要构建依赖；而它们的 depends
           # 可能指向本仓库在其它作业里构建的包（libssc/sheng-sensors/sheng-devauth/
           # firmware-xiaomi-sheng），不在本 chroot 的仓库里，-s 会解析失败。
-          sudo env MAKEPKG_FLAGS="-df" bash scripts/host/22-repack-deb.sh deb-out
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" MAKEPKG_FLAGS="-df" bash scripts/host/22-repack-deb.sh deb-out
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
         run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
