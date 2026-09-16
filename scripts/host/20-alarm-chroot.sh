@@ -176,6 +176,23 @@ alarm_chroot_run "$ALARM_CHROOT" pacman -S --noconfirm --needed \
   bsdtar jq ccache $ALARM_EXTRA_PKGS || warn "可选构建工具安装失败（已忽略）"
 
 # ---------------------------------------------------------------------------
+# 4.5) 移除构建 chroot 自带的发行版内核
+#   底包（ALARM tarball / Holo Core rootfs）都预装了 stock 内核，而我们在 21-build-pkg.sh
+#   里会把构建产物 linux-xiaomi-sheng 装进同一个 chroot 供后续包使用，于是报：
+#     :: linux-xiaomi-sheng-... and linux-6.17.8.arch1-1 are in conflict
+#     [21-build-pkg.sh] 警告: 把 linux-xiaomi-sheng-... 装入构建 chroot 失败
+#   （pacman --noconfirm 对"是否移除冲突包"默认回答 N）。
+#   构建 chroot 不需要内核，-Rdd 直接删掉，顺带把缓存快照缩小约 500 MB。
+# ---------------------------------------------------------------------------
+for name in linux linux-aarch64; do
+  if alarm_chroot_run "$ALARM_CHROOT" pacman -Q "$name" >/dev/null 2>&1; then
+    log "移除构建 chroot 自带的发行版内核: $name（与 linux-xiaomi-sheng 冲突且构建不需要）"
+    alarm_chroot_run "$ALARM_CHROOT" pacman -Rdd --noconfirm --color never "$name" \
+      || warn "移除 $name 失败（继续，仅影响日志噪音）"
+  fi
+done
+
+# ---------------------------------------------------------------------------
 # 5) 允许以非 root 用户 builder 执行 makepkg
 # ---------------------------------------------------------------------------
 if ! alarm_chroot_run "$ALARM_CHROOT" id "$BUILDER_USER" >/dev/null 2>&1; then
