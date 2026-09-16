@@ -3,7 +3,8 @@
 # Keep ALARM identity/authentication and the sheng Plymouth configuration.
 set -euo pipefail
 state=/var/lib/omarchy-sheng/settings-transaction
-paths=(etc/os-release etc/nsswitch.conf etc/security/faillock.conf etc/plymouth/plymouthd.conf)
+paths=(etc/os-release etc/nsswitch.conf etc/security/faillock.conf etc/plymouth/plymouthd.conf
+  etc/skel/.config/hypr/monitors.lua etc/skel/.config/hypr/autostart.lua)
 case "${1:-}" in
   save)
     # Do not replace the recovery copy if an earlier transaction was interrupted.

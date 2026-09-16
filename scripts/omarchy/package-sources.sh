@@ -5,6 +5,13 @@ omarchy_sheng_targets() {
   printf '%s\n' omarchy/omarchy omarchy/omarchy-settings omarchy/omarchy-keyring \
     omarchy/ttf-jetbrains-mono-nerd-basic omarchy/xdg-terminal-exec omarchy/hyprland \
     omarchy/hyprtoolkit omarchy/hyprland-guiutils omarchy/quickshell-git
+  if [[ -f /etc/omarchy-sheng/extra-targets.list ]]; then
+    local target
+    while read -r target; do
+      [[ -n $target ]] || continue
+      if pacman -Q "${target#*/}" >/dev/null 2>&1; then printf '%s\n' "$target"; fi
+    done < /etc/omarchy-sheng/extra-targets.list
+  fi
 }
 
 omarchy_sheng_upgrade_args() {

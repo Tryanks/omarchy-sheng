@@ -26,7 +26,8 @@ explicit flashing operations; the desktop installer does neither.
 
 Default image login is `username` / `password`; change it on first use. Public
 images contain no personal SSH keys or Wi-Fi credentials. Only Omarchy is
-installed in Omarchy images; KDE is not bundled.
+installed in Omarchy images; the KDE desktop is not bundled (upstream apps such
+as Kdenlive can depend on KDE libraries).
 
 ## Existing sheng Arch installation
 
@@ -38,13 +39,16 @@ bash scripts/omarchy/install.sh
 
 This installs the desktop payload. New accounts created afterwards inherit
 `/etc/skel`; existing users must explicitly merge those defaults with their own
-configuration. Select **Omarchy (Hyprland uwsm)** in SDDM. The first real login
-runs upstream user provisioning with a live DBus/Wayland/user-systemd session.
+configuration. Select **Omarchy (Hyprland uwsm)** in SDDM. The upstream default app list is installed wherever ARM binary targets exist;
+missing packages are recorded in `/var/lib/omarchy-sheng/omitted-packages.txt`.
+The first real login
+runs unmodified upstream user provisioning with a live DBus/Wayland/user-systemd session.
 The installer never runs `omarchy-apply-system` or changes device partitions.
 
 ## Updates
 
-Use `omarchy-sheng-update` (or `omarchy update`, routed to the same entrypoint).
+Use upstream `omarchy update`. The sheng overlay changes only the package-source
+and ALARM keyring stages; the upstream workflow remains in charge.
 The Omarchy edge repository is **Sync only**. Explicit source-qualified targets
 select the Omarchy/Hyprland/Quickshell package set during a **full** ALARM upgrade;
 `--ignore` prevents `--needed` from letting a different repository replace an
@@ -56,8 +60,7 @@ Library linkage is checked after installation. Settings transaction hooks preser
 ALARM identity, NSS/PAM and the device Plymouth configuration. Interrupted settings
 transactions retain their recovery copy under `/var/lib/omarchy-sheng/`.
 
-Upstream PC provisioning/migrations and boot/kernel updates are not run by this
-entrypoint. New Omarchy releases require bring-up review; this rolling ARM port
+Device boot/kernel updates are managed separately. New Omarchy releases require bring-up review; this rolling ARM port
 is experimental. Keep backups before upgrades. Settings and package versions
 used by an image are recorded in its package manifest.
 

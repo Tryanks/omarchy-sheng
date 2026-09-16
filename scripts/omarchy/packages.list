@@ -1,9 +1,7 @@
-# Small usable desktop; the full PC application collection is deliberately optional.
-alacritty
+# Runtime prerequisites, followed by the installed upstream default application list.
 xdg-user-dirs
 xdg-utils
 xdg-desktop-portal-gtk
-firefox
 nautilus
 gvfs
 udiskie
