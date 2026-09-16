@@ -112,12 +112,30 @@ above. This procedure does not reboot, suspend, start charger mode, or enroll.
 
 ## Updates
 
+Charging startup timing and measured idle/screensaver load are documented in
+[charging validation](docs/charging-validation.md).
+
 Use upstream `omarchy update`. The sheng overlay changes only the package-source
 and ALARM keyring stages; the upstream workflow remains in charge.
 The Omarchy edge repository is **Sync only**. Explicit source-qualified targets
 select the Omarchy/Hyprland/Quickshell package set during a **full** ALARM upgrade;
 `--ignore` prevents `--needed` from letting a different repository replace an
-unchanged selected graphics package. Signing verification stays enabled.
+unchanged selected graphics package. Official packages retain required signature
+verification.
+
+Application installation also uses the [Omarchy Mac ARM supplement](https://github.com/omarchy-mac/omarchy-pkgs-aarch64)
+after ALARM. This supplies portable ARM applications including Ghostty. Its current
+edge artifacts are unsigned, so only that repository uses `Optional TrustedOnly`;
+global and official-repository trust settings are unchanged. The sheng updater
+keeps the desktop pair and selected graphics packages on official Omarchy edge,
+not the supplement's Mac-specific desktop packages.
+
+Use the native Install menu or `omarchy-pkg-add ghostty`. Installation helpers
+resolve official Sync-only targets explicitly and recognize virtual package
+providers such as `obsidian-appimage`. With bare pacman, official-only applications
+still require a qualified target, for example `sudo pacman -S omarchy/typora`.
+These helpers do not make x86-only applications available on ARM. See
+[ARM application sources](docs/arm-app-sources.md) for validation and image scope.
 
 Omarchy and omarchy-settings upgrade as an exact-version pair. The current
 published ARM payload is 4.0.2; package availability can lag the upstream Git tag.

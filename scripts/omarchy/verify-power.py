@@ -37,6 +37,8 @@ def verify(root: Path):
     require(link.is_symlink() and str(link.readlink()) == "/" + service, "charger service not enabled")
     require("ConditionKernelCommandLine=androidboot.mode=charger" in (root / service).read_text(), "charger boot guard missing")
     require((root / "usr/local/lib/omarchy-sheng/lid.sh").is_file(), "lid helper missing")
+    require((root / "usr/local/lib/omarchy-sheng/wait-charger.py").is_file(), "charger readiness helper missing")
+    require((root / "etc/systemd/system/xiaomi-mipps-auth.service.d/60-sheng-readiness.conf").is_file(), "charger readiness ordering missing")
     require((root / "usr/local/share/applications/omarchy-sheng-fingerprint.desktop").is_file(), "fingerprint settings entry missing")
     require((root / "usr/local/lib/omarchy-sheng/fingerprint-auth.py").is_file(), "fingerprint authentication helper missing")
     require((root / "usr/local/lib/omarchy-sheng/fingerprint_ops.py").is_file(), "fingerprint operations module missing")

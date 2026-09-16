@@ -9,6 +9,10 @@ install -d /usr/local/lib/omarchy-sheng /usr/local/bin /etc/pacman.d/hooks
 install -m755 "$HERE/"{package-sources,preserve-system,verify}.sh /usr/local/lib/omarchy-sheng/
 install -m755 "$HERE/update.sh" /usr/local/bin/omarchy-update-system-pkgs
 install -m755 "$HERE/update-keyring.sh" /usr/local/bin/omarchy-update-keyring
+install -m755 "$HERE/pkg-add.sh" /usr/local/bin/omarchy-pkg-add
+install -m755 "$HERE/pkg-install.sh" /usr/local/bin/omarchy-pkg-install
+install -m755 "$HERE/pkg-present.sh" /usr/local/bin/omarchy-pkg-present
+install -m755 "$HERE/pkg-missing.sh" /usr/local/bin/omarchy-pkg-missing
 install -m644 "$HERE/session.lua" /usr/local/lib/omarchy-sheng/session.lua
 install -m755 "$HERE/verify-power.py" /usr/local/lib/omarchy-sheng/verify-power.py
 install -m755 "$HERE/configure-power.py" /usr/local/lib/omarchy-sheng/configure-power.py

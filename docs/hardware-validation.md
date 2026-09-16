@@ -64,6 +64,9 @@ Missing default binary targets are recorded per image in
 `/var/lib/omarchy-sheng/omitted-packages.txt`. The initial set is dotnet-runtime,
 obs-studio, obsidian, pinta and qemu-user-static-binfmt. Apple-only asdcontrol and
 the PC kernel-modules-hook are excluded because sheng owns those device paths.
+Later application-source integration supplies several of these omissions and
+Ghostty; see [ARM application sources](arm-app-sources.md). The initial image
+manifests above remain historical records.
 
 The upstream package's `version` file still says `4.0.0.alpha`; `pacman -Q omarchy`
 is the authoritative installed package version used for this report.

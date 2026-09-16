@@ -14,6 +14,8 @@ def configure(root: Path):
         "sleep.conf": "etc/systemd/sleep.conf.d/60-omarchy-sheng.conf",
         "lid.sh": "usr/local/lib/omarchy-sheng/lid.sh",
         "polkit-admin.rules": "etc/polkit-1/rules.d/00-omarchy-sheng-admin.rules",
+        "wait-charger.py": "usr/local/lib/omarchy-sheng/wait-charger.py",
+        "mipps-ready.conf": "etc/systemd/system/xiaomi-mipps-auth.service.d/60-sheng-readiness.conf",
     }
     charger = root / "usr/lib/systemd/system/xiaomi-charger-mode.service"
     if not charger.is_file():

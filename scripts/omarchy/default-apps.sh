@@ -6,10 +6,7 @@ source /usr/local/lib/omarchy-sheng/package-sources.sh
 install -d /etc/omarchy-sheng /var/lib/omarchy-sheng
 report=/var/lib/omarchy-sheng/omitted-packages.txt
 : > "$report"
-declare -A available=() selected=()
-while read -r repo package _; do
-  [[ -n ${available[$package]:-} ]] || available[$package]=$repo
-done < <(pacman -Sl)
+declare -A selected=()
 while read -r target; do selected[${target#*/}]=$target; done < <(omarchy_sheng_targets)
 targets=()
 extra_targets=$(mktemp)
@@ -27,10 +24,9 @@ while read -r package; do
   esac
   if [[ -n ${selected[$package]:-} ]]; then
     continue
-  elif [[ -n ${available[$package]:-} ]]; then
-    target=${available[$package]}/$package
+  elif target=$(omarchy_sheng_resolve_install_target "$package" 2>/dev/null); then
     targets+=("$target")
-    [[ ${available[$package]} != omarchy ]] || echo "$target" >> "$extra_targets"
+    [[ $target != omarchy/* ]] || echo "$target" >> "$extra_targets"
   else
     printf '%s: no binary target in configured ARM repositories\n' "$package" >> "$report"
   fi
