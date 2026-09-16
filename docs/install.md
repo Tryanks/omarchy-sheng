@@ -23,6 +23,7 @@ partition is prepared, from bootloader fastboot:
 ```sh
 fastboot flash linux rootfs.img
 fastboot flash boot_b omarchy-sheng-dual-boot.img
+fastboot erase dtbo_b
 fastboot set_active b
 fastboot reboot
 ```
@@ -39,6 +40,7 @@ the dual image points at a different partition.
 ```sh
 fastboot flash userdata rootfs.img
 fastboot flash boot_b omarchy-sheng-single-boot.img
+fastboot erase dtbo_b
 fastboot set_active b
 fastboot reboot
 ```

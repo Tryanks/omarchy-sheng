@@ -1,9 +1,40 @@
-Omarchy ARM userspace on the archlinux-sheng device base.
+Omarchy on Xiaomi Pad 6S Pro 12.4 (`sheng`, SM8550): upstream Omarchy ARM
+userspace on the [code002-2/archlinux-sheng](https://github.com/code002-2/archlinux-sheng)
+device base. This is a community preview, not an official Omarchy release.
 
 - Matching single-system (`userdata`) and dual-boot (`linux`) boot/rootfs pairs.
 - Upstream Omarchy desktop, first-login provisioning and default application list.
 - ARM package source/keyring integration, touchscreen service enabled, 2x display scale.
+- Software cursor workaround for the internal DSI display.
 - Per-image installed package manifest, source run/revision and SHA-256 checksums.
 
-Read `INSTALL.md` before flashing. This prerelease is a community hardware port.
-Hardware verification results will be added before this draft is published.
+Default login: **`omarchy` / `omarchy`**. Root initially uses the same password.
+These builds use `zh_CN.UTF-8`; upstream components without Chinese translations
+still use English. No private SSH keys or Wi-Fi credentials are included.
+
+## Verified so far
+
+The desktop runs on the physical tablet: Omarchy 4.0.2-1, Hyprland 0.56.2-3,
+Quickshell, a 3048x2032 144 Hz display, official pogo keyboard, touchpad,
+touchscreen, visible pointer and brightness control. Upstream first-login
+provisioning completed. Android/Linux dual-boot was verified on this device.
+
+The existing-installation hardware result does not by itself qualify a fresh
+release image. Fresh single-system flashing is undergoing validation before
+this draft is published. See [hardware validation](https://github.com/Tryanks/omarchy-sheng/blob/main/docs/hardware-validation.md).
+
+## Known limits
+
+Automatic rotation, pen pressure, fingerprint enrollment, cameras, audio quality,
+suspend/resume and fast charging have not been fully qualified. The default
+application list is retained where ARM binaries exist; missing binary targets
+include dotnet-runtime, obs-studio, obsidian, pinta and qemu-user-static-binfmt.
+The installed image records omissions in
+`/var/lib/omarchy-sheng/omitted-packages.txt`.
+
+Read **INSTALL.md** and verify **SHA256SUMS** before flashing. Match the boot/rootfs
+pair to the chosen partition layout. Single-system flashing destroys Android
+userdata; partition resizing is a separate, device-specific operation.
+
+Thanks to code002-2 and the upstream sheng contributors for the kernel, firmware
+and device support, and the Omarchy contributors for the desktop.
