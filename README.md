@@ -25,7 +25,7 @@ Limine, EFI partition, UKI or Btrfs is involved. Never mix boot images and kerne
 module packages from different releases. Partitioning and slot selection are
 explicit flashing operations; the desktop installer does neither.
 
-Default image login is `username` / `password`; change it on first use. Public
+Default image login is `omarchy` / `omarchy`; change it on first use. Public
 images contain no personal SSH keys or Wi-Fi credentials. Only Omarchy is
 installed in Omarchy images; the KDE desktop is not bundled (upstream apps such
 as Kdenlive can depend on KDE libraries).

@@ -117,3 +117,6 @@ jobs:
           test -f sm8550.config || { echo "::error::缺少 sm8550.config"; exit 1; }
           echo "Arch 包目录树检查通过"
           exit $fail
+
+      - name: Ext4 finalization regression
+        run: sudo bash tests/finalize-image.sh

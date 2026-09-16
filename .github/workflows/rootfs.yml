@@ -60,14 +60,14 @@ on:
         description: '普通用户名'
         required: false
         type: string
-        default: 'username'
+        default: 'omarchy'
       hostname:
         description: '主机名'
         required: false
         type: string
         default: 'xiaomi-sheng'
       password:
-        description: '镜像密码（留空则用 ROOTFS_PASSWORD secret，都为空则为默认 password）；注意输入值会明文显示在运行页面'
+        description: '镜像密码（留空则用 ROOTFS_PASSWORD secret，都为空则为默认 omarchy）；注意输入值会明文显示在运行页面'
         required: false
         type: string
         default: ''
@@ -220,7 +220,7 @@ jobs:
           if [ "$IN_DESKTOP" = "Omarchy" ] && [ "$ROOTFS_BASE" != "alarm" ]; then
             echo "::error::Omarchy requires the ALARM base"; exit 1
           fi
-          # 密码优先级：password 输入项 > ROOTFS_PASSWORD secret > 默认 password。
+          # 密码优先级：password 输入项 > ROOTFS_PASSWORD secret > 默认 omarchy。
           # 输入项不是 secret（会明文显示在本次运行的输入摘要里），因此立刻 add-mask，
           # 保证它不会出现在后续任何日志中。
           if [ -n "$IN_PASSWORD" ]; then
@@ -231,7 +231,7 @@ jobs:
             echo "镜像密码取自 ROOTFS_PASSWORD secret"
             PASSWORD="$SECRET_PASSWORD"
           else
-            echo "::warning::未设置密码（password 输入与 ROOTFS_PASSWORD secret 均为空），镜像将使用不安全的默认密码 password"
+            echo "::warning::未设置密码（password 输入与 ROOTFS_PASSWORD secret 均为空），镜像将使用不安全的默认密码 omarchy"
             PASSWORD=""
           fi
           case "$PASSWORD" in
@@ -474,7 +474,7 @@ jobs:
             printf '%s' "$ROOTFS_PASSWORD" | sudo tee "$ROOTFS_MOUNT/root/build.pw" >/dev/null
             sudo chmod 600 "$ROOTFS_MOUNT/root/build.pw"
           else
-            echo "::warning::未设置密码，镜像密码将是 password"
+            echo "::warning::未设置密码，镜像密码将是 omarchy"
           fi
 
       - name: "[chroot] Configure System"

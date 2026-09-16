@@ -14,7 +14,7 @@
 # 环境变量：
 #   /root/build.env 提供 HOSTNAME / USERNAME / LANGUAGE / AUTOLOGIN / DESKTOP /
 #                    PLASMA_MOBILE / PARTITION_LABEL / QUIET_BOOT
-#   ROOTFS_PASSWORD 由 workflow 通过 env 传入（不落盘；为空则回退到上游的 password）
+#   ROOTFS_PASSWORD 由 workflow 通过 env 传入（不落盘；为空则回退到 omarchy）
 #
 # 在 chroot 内执行:
 #   chroot "$MOUNT" env ROOTFS_PASSWORD=... /root/sheng-build/in-chroot/40-system-config.sh
@@ -98,8 +98,8 @@ if [[ -z "${ROOTFS_PASSWORD:-}" && -f /root/build.pw ]]; then
   ROOTFS_PASSWORD="$(cat /root/build.pw)"
 fi
 if [[ -z "${ROOTFS_PASSWORD:-}" ]]; then
-  warn "ROOTFS_PASSWORD 未设置，使用上游同样的默认密码: password"
-  ROOTFS_PASSWORD="password"
+  warn "ROOTFS_PASSWORD 未设置，使用默认密码: omarchy"
+  ROOTFS_PASSWORD="omarchy"
 fi
 printf '%s:%s\n' "$USERNAME" "$ROOTFS_PASSWORD" | chpasswd
 printf 'root:%s\n' "$ROOTFS_PASSWORD" | chpasswd

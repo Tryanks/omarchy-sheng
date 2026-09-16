@@ -50,7 +50,7 @@ plan; these commands deliberately do not guess disk geometry or modify the GPT.
 ## First boot and recovery
 
 The root filesystem expands to its partition on first boot. Default image account:
-`username`, password `password` (root has the same initial password). Change these
+`omarchy`, password `omarchy` (root has the same initial password). Change these
 with `passwd` and `sudo passwd root`. Public images include no personal SSH keys
 or Wi-Fi profiles. SDDM starts the upstream Omarchy UWSM session; the first login
 initializes the user's theme and developer environment and may need Internet.
