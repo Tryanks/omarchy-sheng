@@ -60,9 +60,10 @@ fi
 chmod -R 755 "$MOUNT/root/sheng-build"
 
 # 设备包 .pkg.tar.* 入镜像 /tmp/pkgs
-if [[ -d "$REPO_ROOT/pkgs" ]]; then
+DEVICE_PACKAGES_DIR="${DEVICE_PACKAGES_DIR:-$REPO_ROOT/pkgs}"
+if [[ -d "$DEVICE_PACKAGES_DIR" ]]; then
   install -d "$MOUNT/tmp/pkgs"
-  cp -a "$REPO_ROOT/pkgs/." "$MOUNT/tmp/pkgs/"
+  cp -a "$DEVICE_PACKAGES_DIR/." "$MOUNT/tmp/pkgs/"
   log "已拷入 $(find "$MOUNT/tmp/pkgs" -name '*.pkg.tar.*' | wc -l) 个 pacman 包到 /tmp/pkgs"
 fi
 
