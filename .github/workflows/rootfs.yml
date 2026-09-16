@@ -282,11 +282,19 @@ jobs:
 
           SLUG="$(printf '%s' "${{ inputs.desktop }}" | tr ' ' '-')"
 
+          # 浏览器：holo-core 源里没有 firefox（也没有 chromium），只支持不装
+          BROWSER="${{ inputs.browser }}"
+          if [ "$ROOTFS_BASE" = "holo-core" ] && [ "$BROWSER" != "none" ]; then
+            echo "::warning::holo-core 源里没有 ${BROWSER}，本次构建不安装浏览器（browser 输入被忽略）"
+            BROWSER="none"
+          fi
+
           {
             echo "label=${LABEL}"
             echo "quiet_boot_enabled=${QUIET}"
             echo "boot_img_pattern=${PATTERN}"
             echo "desktop_slug=${SLUG}"
+            echo "browser=${BROWSER}"
           } >> "$GITHUB_OUTPUT"
 
           echo "Arch Linux ARM (aarch64) / ${{ inputs.desktop }} / 分区 $LABEL / quiet=$QUIET"
@@ -420,7 +428,7 @@ jobs:
           sudo tee "$ROOTFS_MOUNT/root/build.env" >/dev/null <<EOF
           DESKTOP='${{ inputs.desktop }}'
           PLASMA_MOBILE='${{ inputs.plasma_mobile }}'
-          BROWSER='${{ inputs.browser }}'
+          BROWSER='${{ steps.parse.outputs.browser }}'
           AUTOLOGIN='${{ inputs.autologin }}'
           USERNAME='${{ inputs.username }}'
           HOSTNAME='${{ inputs.hostname }}'
