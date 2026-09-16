@@ -10,6 +10,7 @@
 # 环境变量：
 #   BOOT_IMG_PATTERN  例如 boot_sheng_dualboot_plymouth.img
 #   KERNEL_RELEASES_REPO  默认 ianchb/sm8550-mainline
+#   KERNEL_RELEASE    指定 release tag（例如 7.2.6）；留空则取最新 release
 #   GH_TOKEN          GitHub Actions 自动注入
 #
 # 产出: boot.img、debs/<内核 deb>
@@ -22,13 +23,21 @@ source "$HERE/../common/distro-env.sh"
 
 REPO="${KERNEL_RELEASES_REPO:-ianchb/sm8550-mainline}"
 PATTERN="${BOOT_IMG_PATTERN:?需要 BOOT_IMG_PATTERN（见 workflow 的 boot mode 解析）}"
+KERNEL_RELEASE="${KERNEL_RELEASE:-}"
 
 mkdir -p debs
 
-TAG="$(gh release list --repo "$REPO" --limit 1 --json tagName -q '.[0].tagName')"
-[[ -n "$TAG" ]] || die "无法获取 $REPO 的 release tag"
-
-log "使用 $REPO 的 release: $TAG"
+if [[ -n "$KERNEL_RELEASE" ]]; then
+  # 固定 release：可复现构建（workflow 的 kernel_release 输入）
+  TAG="$KERNEL_RELEASE"
+  gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 \
+    || die "指定的内核 release 不存在: $REPO@$TAG"
+  log "使用 $REPO 的指定 release: $TAG"
+else
+  TAG="$(gh release list --repo "$REPO" --limit 1 --json tagName -q '.[0].tagName')"
+  [[ -n "$TAG" ]] || die "无法获取 $REPO 的 release tag"
+  log "使用 $REPO 的最新 release: $TAG（可用 kernel_release 输入固定版本）"
+fi
 gh release download "$TAG" --repo "$REPO" \
   --pattern "$PATTERN" \
   --pattern 'linux-xiaomi-sheng*.deb' \

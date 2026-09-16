@@ -43,7 +43,7 @@ on:
         description: '内核仓库分支'
         required: false
         type: string
-        default: 'sheng-7.2.2'
+        default: 'sheng-7.2.6'
       kernel_config:
         description: '内核配置文件（仓库内文件名）'
         required: false

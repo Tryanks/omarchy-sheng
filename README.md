@@ -23,7 +23,8 @@
 | **custom_partition** | *(空)* | 仅 `boot_mode=custom` 需要，且必须搭配 `kernel_source=custom_build` |
 | **quiet_boot** | `true` | 安装 Plymouth 并选用 `*_plymouth.img`；`server` 模式或 `rootfs_base=holo-core` 下自动忽略 |
 | **kernel_source** | `prebuilt` | `prebuilt` = 取 ianchb 内核 deb 并**重打包成 pacman 包**；`custom_build` = 自行编译后打包 |
-| **kernel_repo / kernel_branch / kernel_config** | `ianchb/sm8550-mainline` / `sheng-7.2.2` / `sm8550.config` | 仅 `custom_build` 使用 |
+| **kernel_release** | `7.2.6` | `prebuilt` 取哪个 release（留空则取最新；固定版本便于复现），boot 镜像与内核 deb 同源 |
+| **kernel_repo / kernel_branch / kernel_config** | `ianchb/sm8550-mainline` / `sheng-7.2.6` / `sm8550.config` | 仅 `custom_build` 使用；仓库内 `sm8550.config` 与上游同名 release 同步（当前 = 7.2.6） |
 | **firmware_repo / firmware_branch** | `ianchb/sheng-firmware` / `master` | 设备固件来源（构建时打成 tar.zst 供 makepkg 离线使用） |
 | **rootfs_size** | `10G` | 镜像初始大小；构建后收缩，首启由 `x-systemd.growfs` 扩到分区实际大小 |
 | **shrink_image** | `true` | 构建后 `e2fsck -fy` + `resize2fs -M` 收缩镜像 |

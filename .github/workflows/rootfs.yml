@@ -122,12 +122,17 @@ on:
         description: '内核分支'
         required: false
         type: string
-        default: 'sheng-7.2.2'
+        default: 'sheng-7.2.6'
       kernel_config:
         description: '内核配置文件（仓库内文件名）'
         required: false
         type: string
         default: 'sm8550.config'
+      kernel_release:
+        description: 'prebuilt 内核取哪个 release（留空则取最新；固定版本可复现构建）'
+        required: false
+        type: string
+        default: '7.2.6'
       firmware_repo:
         description: '设备固件仓库'
         required: false
@@ -310,6 +315,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BOOT_IMG_PATTERN: ${{ steps.parse.outputs.boot_img_pattern }}
+          KERNEL_RELEASE: ${{ inputs.kernel_release }}
         run: |
           chmod +x scripts/host/10-fetch-kernel.sh
           ./scripts/host/10-fetch-kernel.sh
