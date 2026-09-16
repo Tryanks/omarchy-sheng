@@ -19,9 +19,12 @@ Quickshell, a 3048x2032 144 Hz display, official pogo keyboard, touchpad,
 touchscreen, visible pointer and brightness control. Upstream first-login
 provisioning completed. Android/Linux dual-boot was verified on this device.
 
-The existing-installation hardware result does not by itself qualify a fresh
-release image. Fresh single-system flashing is undergoing validation before
-this draft is published. See [hardware validation](https://github.com/Tryanks/omarchy-sheng/blob/main/docs/hardware-validation.md).
+A fresh locally built single-system image has also booted on this tablet from
+`userdata`. Automatic Wi-Fi/SSH, desktop startup and Chinese Pinyin input were
+verified. It uses the same rootfs stages and device packages as CI. Published
+CI rootfs bytes were build/filesystem-checked, not separately flashed; the exact
+local/CI package difference and test scope are recorded in
+[hardware validation](https://github.com/Tryanks/omarchy-sheng/blob/main/docs/hardware-validation.md).
 
 ## Known limits
 

@@ -7,7 +7,7 @@ Omarchy supplies Hyprland, Quickshell, UWSM, SDDM and user configuration.
 
 **Running on hardware.** Omarchy starts through SDDM/UWSM on sheng, with the
 official keyboard, touchpad and touch confirmed. See [hardware validation](docs/hardware-validation.md)
-for exact versions and limits. Release image packaging is in progress.
+for exact versions and limits. [Download single and dual boot preview images](https://github.com/Tryanks/omarchy-sheng/releases/tag/v0.1.0-preview.1).
 Do not interpret a successful build as a hardware test. This is a community port, not an official Omarchy release.
 
 ## Images

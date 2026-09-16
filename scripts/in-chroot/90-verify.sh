@@ -220,7 +220,7 @@ fi
 # 单个包改名/缺失不会中断构建，这里做硬校验兜底）
 case "${DESKTOP:-server}" in
   Omarchy)
-    if /usr/local/lib/omarchy-sheng/verify.sh; then
+    if env -u XDG_RUNTIME_DIR /usr/local/lib/omarchy-sheng/verify.sh; then
       pass "Omarchy payload and ARM linkage"
     else
       fail "Omarchy verification failed"

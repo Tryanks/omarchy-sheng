@@ -46,11 +46,25 @@ jobs:
             gh run download "$run" -n "rootfs-arch-Omarchy-$label" -D work
             gh run download "$run" -n "boot-arch-Omarchy-$label" -D work
             (cd work && sha256sum -c SHA256SUMS)
+            # Refresh the stateless post-update verifier with the sudo-runtime
+            # fix. Record this release overlay separately from the CI rootfs SHA.
+            mkdir work/mount
+            trap 'sudo umount work/mount/proc work/mount/dev work/mount 2>/dev/null || true' EXIT
+            sudo mount -o loop work/rootfs.img work/mount
+            sudo install -m755 scripts/omarchy/verify.sh work/mount/usr/local/lib/omarchy-sheng/verify.sh
+            sudo mount --bind /dev work/mount/dev
+            sudo mount -t proc proc work/mount/proc
+            sudo chroot work/mount env -u XDG_RUNTIME_DIR /usr/local/lib/omarchy-sheng/verify.sh
+            sudo umount work/mount/proc work/mount/dev work/mount
+            trap - EXIT
+            sudo e2fsck -fn work/rootfs.img
             prefix="omarchy-sheng-$mode"
             zstd -T0 -6 work/rootfs.img -o "release/$prefix-rootfs.img.zst"
             cp work/boot.img "release/$prefix-boot.img"
             cp work/packages.txt "release/$prefix-packages.txt"
-            gh run view "$run" --json headSha,url > "release/$prefix-source.json"
+            gh run view "$run" --json headSha,url | jq --arg sha "$GITHUB_SHA" \
+              '. + {releaseOverlaySha: $sha, overlayFiles: ["/usr/local/lib/omarchy-sheng/verify.sh"]}' \
+              > "release/$prefix-source.json"
             # GitHub limits individual assets to 2 GiB. Split large compressed images.
             if (( $(stat -c%s "release/$prefix-rootfs.img.zst") > 1900000000 )); then
               split -b 1900000000 -d "release/$prefix-rootfs.img.zst" "release/$prefix-rootfs.img.zst.part-"
@@ -62,6 +76,11 @@ jobs:
           (cd release && sha256sum ./* > SHA256SUMS)
       - name: Create draft prerelease
         run: |
-          gh release create "$RELEASE_TAG" --draft --prerelease --target "$GITHUB_SHA" \
-            --title "Omarchy sheng $RELEASE_TAG" --notes-file docs/release-notes.md
-          gh release upload "$RELEASE_TAG" release/*
+          if draft=$(gh release view "$RELEASE_TAG" --json isDraft -q .isDraft 2>/dev/null); then
+            [[ $draft == true ]] || { echo 'Refusing to replace a published release'; exit 1; }
+            gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA" --notes-file docs/release-notes.md
+          else
+            gh release create "$RELEASE_TAG" --draft --prerelease --target "$GITHUB_SHA" \
+              --title "Omarchy sheng $RELEASE_TAG" --notes-file docs/release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" release/* --clobber

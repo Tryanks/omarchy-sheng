@@ -22,12 +22,21 @@ Device: Xiaomi Pad 6S Pro 12.4 (`sheng`, SM8550), 12 GB RAM, official pogo keybo
 
 ## Limits
 
-This validates the desktop on an existing dual-boot Arch installation. Fresh
-release rootfs images require their own build/filesystem checks; neither a new
-flash of the release rootfs nor a destructive single-system conversion has been
-performed on this tablet. The single-system variant uses the upstream boot
-image with `PARTLABEL=userdata`, and must not be described as independently
-hardware-tested.
+A fresh single-system image was assembled locally on native ARM64 Linux using
+`scripts/build-local.sh`, the same rootfs stages as CI and kernel 7.2.2 device
+packages from CI run 35122890002. It was flashed to `userdata` and booted through
+slot B. Automatic Wi-Fi, key-based SSH, SDDM/UWSM, Quickshell, the software cursor,
+144 Hz display and the touchscreen service passed. Chinese locale is active;
+Fcitx5 Pinyin was exercised in Foot by entering `nihao` and committing `你好`.
+No failed system or user units were present after first login.
+
+The deployment copy was privately seeded with Wi-Fi and SSH access. These are
+absent from public CI images. Installed package manifests match the CI single
+image except `at-spi2-core` (local mirror 2.60.6-1; CI 2.60.7-1). The published
+CI rootfs bytes have not themselves been flashed; a new flash of the dual image
+has not been independently tested. Both CI images passed the same build and
+filesystem checks. This distinction is retained instead of treating every
+produced artifact as hardware-qualified.
 
 Automatic rotation, pen pressure, fingerprint enrollment, cameras, audio quality,
 suspend/resume and charging performance are not yet fully qualified. There is no
