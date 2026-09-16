@@ -93,6 +93,26 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# 补齐 Holo Core rootfs 缺失的标准目录
+#   实测：system.rootfs.zst 里没有 /dev /proc /sys /run /tmp 等（只有 usr/etc/var/...），
+#   而挂载 virtfs、systemd、pacman 都需要它们。
+#   用法: holo_ensure_base_dirs <root>
+# ---------------------------------------------------------------------------
+holo_ensure_base_dirs() {
+  local root="${1:?用法: holo_ensure_base_dirs <root>}"
+  local d
+  for d in dev dev/pts dev/shm proc sys run tmp var/tmp var/run var/lock root mnt home srv opt; do
+    [[ -L "$root/$d" ]] && continue
+    install -d -m 755 "$root/$d"
+  done
+  chmod 1777 "$root/tmp" "$root/var/tmp" "$root/dev/shm"
+  # /var/run 与 /var/lock 在 Arch 上是指向 /run 的软链
+  [[ -e "$root/var/run" || -L "$root/var/run" ]] || ln -s ../run "$root/var/run"
+  [[ -e "$root/var/lock" || -L "$root/var/lock" ]] || ln -s ../run/lock "$root/var/lock"
+  log "已补齐 Holo Core rootfs 的标准目录（dev/proc/sys/run/tmp/...）"
+}
+
+# ---------------------------------------------------------------------------
 # 把宿主 DNS 写进 chroot/镜像（两种底共用；resolv.conf 可能是悬空软链，先删）
 #   用法: chroot_write_dns <root>
 # ---------------------------------------------------------------------------

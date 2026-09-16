@@ -41,6 +41,9 @@ holo_fetch_rootfs "$HOLO_ROOTFS_PATH"
 log "解包 Holo Core rootfs（$HOLO_SNAPSHOT）到 $MOUNT"
 holo_extract_rootfs "$HOLO_ROOTFS_PATH" "$MOUNT"
 
+# 底座里没有 /dev /proc /sys /run /tmp 等目录，先补齐（挂载 virtfs 与 systemd 都要用）
+holo_ensure_base_dirs "$MOUNT"
+
 # ---------------------------------------------------------------------------
 # 3) 仓库配置（core + extra，SigLevel=Optional）
 # ---------------------------------------------------------------------------

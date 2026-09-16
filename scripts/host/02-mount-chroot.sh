@@ -25,6 +25,15 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 
 [[ -d "$MOUNT" ]] || die "挂载点不存在: $MOUNT"
 
+# 挂载点目录必须存在：ALARM 的 tarball 自带 /dev /proc /sys，但 holo-core 的
+# system.rootfs.zst 只含 usr/etc/var 等，缺这几个（实测报
+#   mount: /mnt/rootfs/dev: mount point does not exist）
+# 因此两种底包都先补齐目录与权限。
+for d in dev dev/pts dev/shm proc sys run tmp var/tmp root mnt home srv opt; do
+  install -d "$MOUNT/$d"
+done
+chmod 1777 "$MOUNT/tmp" "$MOUNT/var/tmp" "$MOUNT/dev/shm" 2>/dev/null || true
+
 mount --bind /dev      "$MOUNT/dev"
 mount --bind /dev/pts  "$MOUNT/dev/pts"
 mount -t proc  proc    "$MOUNT/proc"

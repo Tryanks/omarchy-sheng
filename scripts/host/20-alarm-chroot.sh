@@ -78,6 +78,7 @@ if [[ ! -x "$ALARM_CHROOT/usr/bin/pacman" ]]; then
     HOLO_ROOTFS_PATH="${HOLO_ROOTFS_PATH:-$_ALARM_TMP/system.rootfs.zst}"
     holo_fetch_rootfs "$HOLO_ROOTFS_PATH"
     holo_extract_rootfs "$HOLO_ROOTFS_PATH" "$ALARM_CHROOT"
+    holo_ensure_base_dirs "$ALARM_CHROOT"
   else
     ALARM_TARBALL_PATH="${ALARM_TARBALL_PATH:-$_ALARM_TMP/ArchLinuxARM-aarch64-latest.tar.gz}"
     alarm_fetch_tarball "$ALARM_TARBALL_PATH"
