@@ -92,6 +92,8 @@ image. The device's existing fprintd/private-libfprint stack stores the records.
 This integration enables lock-screen authentication, not sudo or polkit bypasses.
 Administrator prompts authenticate the active local wheel user, avoiding the
 ALARM base image's residual `alarm` account.
+An [optional fingerprint latency patch](docs/fingerprint-driver.md) is being
+validated separately; preview.2 keeps the upstream finger-removal behavior.
 
 For existing installations, apply these defaults as root from this checkout:
 

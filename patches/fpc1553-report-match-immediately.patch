@@ -1,0 +1,37 @@
+--- a/libfprint/drivers/fpc1553.c
++++ b/libfprint/drivers/fpc1553.c
+@@ -901,7 +901,12 @@
+     data->scan_print = print_from_key (state->device, fid,
+                                       FP_FINGER_UNKNOWN, user_id);
+   if (data->matched)
+-    data->match_print = g_object_ref (data->scan_print);
++    {
++      data->match_print = g_object_ref (data->scan_print);
++      /* capture_sequence already put the sensor to sleep.  Publish this
++       * authenticated match now; the next capture waits for finger removal. */
++      return 0;
++    }
+   return wait_for_finger_lift (state, TRUE, TRUE);
+ }
+ 
+@@ -969,9 +974,9 @@
+             break;
+           recognized = set_identify_scan_print (state, data, gid, fid,
+                                                  candidate->user_id);
+-          ret = wait_for_finger_lift (state, TRUE, TRUE);
+           if (recognized)
+             break;
++          ret = wait_for_finger_lift (state, TRUE, TRUE);
+         }
+       g_hash_table_unref (seen);
+       return ret;
+@@ -1026,8 +1031,7 @@
+       ret = wait_for_finger_lift (state, TRUE, TRUE);
+     }
+   g_hash_table_unref (seen);
+-  if (!ret && data->matched)
+-    ret = wait_for_finger_lift (state, TRUE, TRUE);
++  /* Successful capture already sleeps the sensor; do not delay the match. */
+   return ret;
+ }
+ 

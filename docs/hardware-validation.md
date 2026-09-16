@@ -117,4 +117,8 @@ The user reports results arrive only after lifting the finger. The installed
 upstream xiaomi-sheng-fingerprint v0.1.4 driver explicitly waits for finger lift
 after a match in both run_verify and run_identify before reporting completion.
 See the [pinned driver patch](https://github.com/ianchb/xiaomi-sheng-fingerprint/blob/76e7301163b0e708f609c9864b3e5833e9f57402/patches/libfprint/0001-libfprint-add-fpc1553.patch).
-Immediate touch-to-unlock has not been implemented; the device driver is unchanged.
+An optional match-latency patch was subsequently built on native ARM64 Linux and
+installed on the test tablet. It passes mocked backend decision tests and runtime
+linkage; fprintd detects the sensor and retained right-thumb enrollment. Physical
+touch-to-unlock timing after this change is not yet confirmed. Preview.2 images
+retain the upstream driver. See [build and rollback details](fingerprint-driver.md).
