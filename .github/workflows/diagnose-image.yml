@@ -7,12 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: '要体检的运行 ID（默认取本仓库最近一次成功运行）'
+        description: '要体检的运行 ID（留空则取本仓库最近一次成功的 Build RootFS 运行）'
         required: false
         type: string
         default: ''
       artifact_name:
-        description: 'artifact 名称（默认自动挑一个 rootfs-*）'
+        description: 'artifact 名称（留空则自动挑一个 rootfs-*）'
         required: false
         type: string
         default: ''
@@ -35,14 +35,14 @@ jobs:
           RUN_ID="${{ inputs.source_run_id }}"
           if [ -z "$RUN_ID" ]; then
             RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --status success --limit 20 \
-              --json databaseId,conclusion,workflowName -q '[.[] | select(.workflowName=="Build RootFS (Arch Linux ARM)")][0].databaseId')"
+              --json databaseId,workflowName -q '[.[] | select(.workflowName=="Build RootFS (Arch Linux ARM)")][0].databaseId')"
           fi
+          [ -n "$RUN_ID" ] || { echo "::error::找不到可用的运行"; exit 1; }
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
           NAME="${{ inputs.artifact_name }}"
           if [ -z "$NAME" ]; then
-            NAME="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
-              -q '.artifacts[].name' | grep -E '^rootfs-' | head -n1)"
+            NAME="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" -q '.artifacts[].name' | grep -E '^rootfs-' | head -n1)"
           fi
           [ -n "$NAME" ] || { echo "::error::找不到 rootfs-* artifact（run $RUN_ID）"; exit 1; }
           echo "artifact=$NAME" >> "$GITHUB_OUTPUT"
@@ -54,58 +54,21 @@ jobs:
         run: |
           gh run download "${{ steps.pick.outputs.run_id }}" --repo "$GITHUB_REPOSITORY" \
             --name "${{ steps.pick.outputs.artifact }}" --dir img
-          ls -lh img | sed 's/^/    /'
           find img -name '*.img' -exec ls -l {} \;
 
-      - name: Mount and dump
+      - name: ext4 geometry check
         run: |
           IMG="$(find img -name 'rootfs*.img' | head -n1)"
           [ -n "$IMG" ] || { echo "::error::压缩包里没有 rootfs*.img"; exit 1; }
           echo "IMG=$IMG" >> "$GITHUB_ENV"
+          echo "文件大小: $(stat -c%s "$IMG")  ($(du -h "$IMG" | cut -f1))"
+          python3 scripts/tools/ext4-info.py "$IMG"
 
-          echo "================ ext4 几何自洽性 ================"
-          FILE_SIZE=$(stat -c%s "$IMG")
-          echo "文件大小: $FILE_SIZE ($(du -h "$IMG" | cut -f1))"
-          python3 - "$IMG" <<'PY'
-import struct, sys
-p = sys.argv[1]
-with open(p, 'rb') as f:
-    f.seek(1024); sb = f.read(1024)
-import os
-file_size = os.path.getsize(p)
-blocks_lo, = struct.unpack_from('<I', sb, 0x04)
-blocks_hi, = struct.unpack_from('<I', sb, 0x150)
-log_bs,  = struct.unpack_from('<I', sb, 0x18)
-feat_incompat, = struct.unpack_from('<I', sb, 0x60)
-blocks = blocks_lo | (blocks_hi << 32)
-bs = 1024 << log_bs
-fs_size = blocks * bs
-print(f'ext4 块大小      : {bs}')
-print(f'ext4 块数        : {blocks}')
-print(f'ext4 文件系统大小: {fs_size} ({fs_size/1048576:.1f} MiB)')
-print(f'镜像文件大小     : {file_size} ({file_size/1048576:.1f} MiB)')
-if file_size < fs_size:
-    print(f'!! FAIL: 文件比文件系统小 {fs_size - file_size} 字节 —— 内核挂载/读取尾部会失败（截断 bug）')
-else:
-    print('OK: 文件不小于文件系统（未截断）')
-flags = {
-    0x0001: 'COMPRESSION', 0x0002: 'FILETYPE', 0x0004: 'RECOVER',
-    0x0008: 'JOURNAL_DEV', 0x0010: 'META_BG', 0x0040: 'EXTENTS',
-    0x0080: '64BIT', 0x0100: 'MMP', 0x0200: 'FLEX_BG',
-    0x0400: 'EA_INODE', 0x1000: 'DIRDATA', 0x2000: 'CSUM_SEED',
-    0x4000: 'LARGEDIR', 0x8000: 'INLINE_DATA', 0x10000: 'ENCRYPT',
-    0x20000: 'CASEFOLD', 0x1000_0: 'ORPHAN_FILE',
-}
-print('incompat 特性    : ' + ', '.join(n for b, n in flags.items() if feat_incompat & b) or '（无）')
-PY
-
-          echo "================ e2fsck（只读检查）================"
-          sudo e2fsck -fn "$IMG" 2>&1 | tail -20 || true
-
-          echo "================ 挂载 ================"
+      - name: Mount and dump
+        run: |
           sudo mkdir -p /mnt/img
           sudo mount -o loop,ro "$IMG" /mnt/img
-          echo "已挂载"
+          echo "已挂载 $IMG"
 
           echo "===== /etc/os-release ====="
           sudo cat /mnt/img/etc/os-release 2>/dev/null || echo "(缺失)"
@@ -113,24 +76,24 @@ PY
           sudo cat /mnt/img/etc/fstab 2>/dev/null || echo "(缺失)"
           echo "===== /etc/machine-id ====="
           sudo cat /mnt/img/etc/machine-id 2>/dev/null || echo "(缺失)"
+
           echo "===== /usr/lib/modules ====="
           sudo ls -1 /mnt/img/usr/lib/modules 2>/dev/null || echo "(缺失)"
           for d in /mnt/img/usr/lib/modules/*/; do
             echo "  $d"
-            sudo ls "$d" | head -5 | sed 's/^/    /'
+            sudo ls "$d" 2>/dev/null | head -5 | sed 's/^/    /'
             sudo test -f "$d/modules.dep" && echo "    [ OK ] modules.dep" || echo "    [FAIL] 缺 modules.dep"
-            sudo test -d "$d/kernel" && echo "    [ OK ] kernel/（模块目录）" || echo "    [FAIL] 缺 kernel/"
+            sudo test -d "$d/kernel" && echo "    [ OK ] kernel/ 模块目录存在" || echo "    [FAIL] 缺 kernel/"
           done
-          echo "===== 内核模块数量 ====="
-          sudo find /mnt/img/usr/lib/modules -name '*.ko*' 2>/dev/null | wc -l
+          echo "内核模块（.ko*）数量: $(sudo find /mnt/img/usr/lib/modules -name '*.ko*' 2>/dev/null | wc -l)"
 
           echo "===== 固件 ====="
           sudo du -sh /mnt/img/lib/firmware 2>/dev/null || echo "(无 /lib/firmware)"
-          echo "-- qcom 下前 20 项 --"
-          sudo ls /mnt/img/lib/firmware/qcom 2>/dev/null | head -20 || echo "(无 qcom)"
-          echo "-- Adreno 相关 --"
-          sudo find /mnt/img/lib/firmware -iname '*a740*' -o -iname '*adreno*' 2>/dev/null | head -10 || true
-          echo "-- sm8550/sheng 相关 --"
+          echo "-- /lib/firmware/qcom 前 20 项 --"
+          sudo ls /mnt/img/lib/firmware/qcom 2>/dev/null | head -20 || echo "(无 qcom 目录)"
+          echo "-- Adreno / a740 固件 --"
+          sudo find /mnt/img/lib/firmware \( -iname '*a740*' -o -iname '*adreno*' \) 2>/dev/null | head -10 || true
+          echo "-- sm8550 / sheng 固件 --"
           sudo find /mnt/img/lib/firmware -path '*sm8550*' 2>/dev/null | head -10 || true
 
           echo "===== 设备包（pacman local db）====="
@@ -139,18 +102,19 @@ PY
           echo "===== 已启用的 unit ====="
           for t in graphical.target multi-user.target NetworkManager.service plasma-autologin.service sddm.service gdm.service adsprpcd-sensorspd.service sheng-devauth.service iio-sensor-proxy.service; do
             state="$(sudo systemctl --root=/mnt/img is-enabled "$t" 2>/dev/null || true)"
-            printf '    %-38s %s\n' "$t" "${state:-（未启用/不存在）}"
+            printf '    %-40s %s\n' "$t" "${state:-（未启用或不存在）}"
           done
 
-          echo "===== 默认 target ====="
+          echo "===== default.target ====="
           sudo readlink -f /mnt/img/etc/systemd/system/default.target 2>/dev/null || echo "(无 default.target 链接)"
 
           echo "===== /boot 内容 ====="
           sudo ls -lh /mnt/img/boot 2>/dev/null | sed 's/^/    /' || echo "(无 /boot)"
 
-          echo "===== 是否有 dtbo/fstab 相关 udev 规则 ====="
+          echo "===== udev rules ====="
           sudo ls /mnt/img/etc/udev/rules.d 2>/dev/null | sed 's/^/    /' || true
 
+          echo "===== 内核 cmdline 期望（从 artifact 名推断 boot_mode）====="
           sudo umount /mnt/img
 
       - name: Summary
@@ -160,5 +124,7 @@ PY
             echo "## 镜像体检：${{ steps.pick.outputs.artifact }}"
             echo ""
             echo "- 来源运行: ${{ steps.pick.outputs.run_id }}"
-            echo "- 镜像: \`$IMG\`"
+            if [ -n "${IMG:-}" ]; then
+              echo "- 镜像文件: \`$IMG\`（$(stat -c%s "$IMG" 2>/dev/null || echo '?') 字节）"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
