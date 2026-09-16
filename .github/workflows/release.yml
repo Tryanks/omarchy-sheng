@@ -1,0 +1,67 @@
+name: Package single and dual boot release
+on:
+  workflow_dispatch:
+    inputs:
+      dual_run:
+        description: Successful dual (linux) rootfs workflow run ID
+        required: true
+        type: string
+      single_run:
+        description: Successful single (userdata) rootfs workflow run ID
+        required: true
+        type: string
+      tag:
+        description: Release tag
+        required: true
+        default: v0.1.0-preview.1
+        type: string
+permissions:
+  contents: write
+  actions: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      DUAL_RUN: ${{ inputs.dual_run }}
+      SINGLE_RUN: ${{ inputs.single_run }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zstd
+      - name: Assemble verified bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ $DUAL_RUN =~ ^[0-9]+$ && $SINGLE_RUN =~ ^[0-9]+$ ]]
+          [[ $RELEASE_TAG =~ ^[a-zA-Z0-9._-]+$ ]]
+          mkdir release
+          for mode in dual single; do
+            if [[ $mode == dual ]]; then run=$DUAL_RUN; label=linux; else run=$SINGLE_RUN; label=userdata; fi
+            [[ $(gh run view "$run" --json conclusion -q .conclusion) == success ]]
+            mkdir work
+            gh run download "$run" -n "rootfs-arch-Omarchy-$label" -D work
+            gh run download "$run" -n "boot-arch-Omarchy-$label" -D work
+            (cd work && sha256sum -c SHA256SUMS)
+            prefix="omarchy-sheng-$mode"
+            zstd -T0 -6 work/rootfs.img -o "release/$prefix-rootfs.img.zst"
+            cp work/boot.img "release/$prefix-boot.img"
+            cp work/packages.txt "release/$prefix-packages.txt"
+            gh run view "$run" --json headSha,url > "release/$prefix-source.json"
+            # GitHub limits individual assets to 2 GiB. Split large compressed images.
+            if (( $(stat -c%s "release/$prefix-rootfs.img.zst") > 1900000000 )); then
+              split -b 1900000000 -d "release/$prefix-rootfs.img.zst" "release/$prefix-rootfs.img.zst.part-"
+              rm "release/$prefix-rootfs.img.zst"
+            fi
+            rm -rf work
+          done
+          cp docs/install.md release/INSTALL.md
+          (cd release && sha256sum ./* > SHA256SUMS)
+      - name: Create draft prerelease
+        run: |
+          gh release create "$RELEASE_TAG" --draft --prerelease --target "$GITHUB_SHA" \
+            --title "Omarchy sheng $RELEASE_TAG" --notes-file docs/release-notes.md
+          gh release upload "$RELEASE_TAG" release/*
