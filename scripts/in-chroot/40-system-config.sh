@@ -117,6 +117,9 @@ systemctl enable NetworkManager.service || warn "启用 NetworkManager 失败"
 # ---------------------------------------------------------------------------
 case "$DESKTOP" in
   GNOME)
+    if [[ "$ROOTFS_BASE" == "holo-core" ]]; then
+      die "holo-core 源里没有 GNOME/gdm（请在 workflow 里改选 KDE Plasma 或 server）"
+    fi
     if [[ "$AUTOLOGIN" == "true" ]]; then
       log "配置 GDM 自动登录: $USERNAME"
       install -d /etc/gdm
@@ -131,18 +134,58 @@ EOF
     systemctl set-default graphical.target
     ;;
   "KDE Plasma")
-    if [[ "$AUTOLOGIN" == "true" ]]; then
-      if [[ "$PLASMA_MOBILE" == "true" ]]; then SDDM_SESSION="plasmamobile"; else SDDM_SESSION="plasma"; fi
-      log "配置 SDDM 自动登录: $USERNAME (session=$SDDM_SESSION)"
-      install -d /etc/sddm.conf.d
-      cat > /etc/sddm.conf.d/autologin.conf <<EOF
+    if [[ "$ROOTFS_BASE" == "holo-core" ]]; then
+      # holo 源里没有 sddm：用 systemd 服务在 tty1 上直接拉起 Plasma Wayland 会话。
+      # autologin=true 时开机即进桌面；false 时保持 tty 登录，登录后手动
+      # `startplasma-wayland`（或在该用户 ~/.bash_profile 里自行 exec）。
+      systemctl set-default graphical.target
+      if [[ "$AUTOLOGIN" == "true" ]]; then
+        log "配置 Plasma 自动登录（holo 模式：无显示管理器，直接起 startplasma-wayland）"
+        cat > /etc/systemd/system/plasma-autologin.service <<EOF
+[Unit]
+Description=Plasma Wayland session for $USERNAME (archlinux-sheng, autologin without display manager)
+After=systemd-user-sessions.service systemd-logind.service
+Conflicts=getty@tty1.service
+After=getty@tty1.service
+
+[Service]
+Type=simple
+User=$USERNAME
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+WorkingDirectory=/home/$USERNAME
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_SESSION_CLASS=user
+Environment=XDG_SESSION_DESKTOP=KDE
+Environment=XDG_CURRENT_DESKTOP=KDE
+ExecStart=/usr/bin/dbus-run-session /usr/bin/startplasma-wayland
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target
+EOF
+        systemctl enable plasma-autologin.service || die "启用 plasma-autologin.service 失败"
+      else
+        log "holo 模式：autologin=false，保持 tty 登录（登录后执行 startplasma-wayland）"
+      fi
+    else
+      if [[ "$AUTOLOGIN" == "true" ]]; then
+        if [[ "$PLASMA_MOBILE" == "true" ]]; then SDDM_SESSION="plasmamobile"; else SDDM_SESSION="plasma"; fi
+        log "配置 SDDM 自动登录: $USERNAME (session=$SDDM_SESSION)"
+        install -d /etc/sddm.conf.d
+        cat > /etc/sddm.conf.d/autologin.conf <<EOF
 [Autologin]
 User=$USERNAME
 Session=$SDDM_SESSION
 EOF
+      fi
+      systemctl enable sddm.service || warn "启用 sddm 失败"
+      systemctl set-default graphical.target
     fi
-    systemctl enable sddm.service || warn "启用 sddm 失败"
-    systemctl set-default graphical.target
     ;;
   server)
     log "server 模式：不配置显示管理器"

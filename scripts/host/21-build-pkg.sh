@@ -52,7 +52,8 @@ source "$HERE/alarm-lib.sh"
 require_root
 
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
-ALARM_CHROOT="${ALARM_CHROOT:-/mnt/alarm}"
+# 构建 chroot 目录由底包决定（ROOTFS_BASE=alarm → /mnt/alarm；holo-core → /mnt/holo）
+ALARM_CHROOT="${ALARM_CHROOT:-$BUILD_CHROOT}"
 PKGS_OUT="${PKGS_OUT:-$REPO_ROOT/pkgs}"
 BUILD_DIR="${BUILD_DIR:-/build}"
 BUILDER_USER="${BUILDER_USER:-builder}"

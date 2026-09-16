@@ -40,6 +40,13 @@ install -d "$MOUNT/root/sheng-build"
 cp -a "$REPO_ROOT/scripts/common"    "$MOUNT/root/sheng-build/"
 cp -a "$REPO_ROOT/scripts/in-chroot" "$MOUNT/root/sheng-build/"
 cp -a "$REPO_ROOT/scripts/lists"     "$MOUNT/root/sheng-build/"
+# 底包专用包列表（holo-core 用 scripts/lists-holo，见 common/distro-env.sh 的 LISTS_DIR）：
+# 在镜像内统一叫 lists/，这样 in-chroot 脚本不必关心底包差异。
+if [[ "$LISTS_DIR" != "lists" && -d "$REPO_ROOT/scripts/$LISTS_DIR" ]]; then
+  rm -rf "${MOUNT:?}/root/sheng-build/lists"
+  cp -a "$REPO_ROOT/scripts/$LISTS_DIR" "$MOUNT/root/sheng-build/lists"
+  log "包列表目录: scripts/$LISTS_DIR（底包 $ROOTFS_BASE）"
+fi
 chmod -R 755 "$MOUNT/root/sheng-build"
 
 # 设备包 .pkg.tar.* 入镜像 /tmp/pkgs

@@ -41,9 +41,12 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/../common/distro-env.sh"
 # shellcheck source=alarm-lib.sh
 source "$HERE/alarm-lib.sh"
+# shellcheck source=holo-lib.sh
+source "$HERE/holo-lib.sh"
 require_root
 
-ALARM_CHROOT="${ALARM_CHROOT:-/mnt/alarm}"
+# 构建 chroot 目录由底包决定（ROOTFS_BASE=alarm → /mnt/alarm；holo-core → /mnt/holo）
+ALARM_CHROOT="${ALARM_CHROOT:-$BUILD_CHROOT}"
 ALARM_CHROOT_TAR="${ALARM_CHROOT_TAR:-}"
 ALARM_CHROOT_PACK="${ALARM_CHROOT_PACK:-}"
 ALARM_EXTRA_PKGS="${ALARM_EXTRA_PKGS:-}"
@@ -70,11 +73,18 @@ fi
 if [[ ! -x "$ALARM_CHROOT/usr/bin/pacman" ]]; then
   _ALARM_TMP="$(mktemp -d)"
   trap 'rm -rf "$_ALARM_TMP"' EXIT
-  ALARM_TARBALL_PATH="${ALARM_TARBALL_PATH:-$_ALARM_TMP/ArchLinuxARM-aarch64-latest.tar.gz}"
-  alarm_fetch_tarball "$ALARM_TARBALL_PATH"
-  log "解包 ALARM 到 $ALARM_CHROOT"
-  alarm_extract_tarball "$ALARM_TARBALL_PATH" "$ALARM_CHROOT"
-  [[ -x "$ALARM_CHROOT/usr/bin/pacman" ]] || die "解包后仍找不到 pacman，tarball 可能损坏"
+  if [[ "$ROOTFS_BASE" == "holo-core" ]]; then
+    log "底包 = Holo Core（$HOLO_SNAPSHOT）：下载 system.rootfs.zst 作为构建 chroot"
+    HOLO_ROOTFS_PATH="${HOLO_ROOTFS_PATH:-$_ALARM_TMP/system.rootfs.zst}"
+    holo_fetch_rootfs "$HOLO_ROOTFS_PATH"
+    holo_extract_rootfs "$HOLO_ROOTFS_PATH" "$ALARM_CHROOT"
+  else
+    ALARM_TARBALL_PATH="${ALARM_TARBALL_PATH:-$_ALARM_TMP/ArchLinuxARM-aarch64-latest.tar.gz}"
+    alarm_fetch_tarball "$ALARM_TARBALL_PATH"
+    log "解包 ALARM 到 $ALARM_CHROOT"
+    alarm_extract_tarball "$ALARM_TARBALL_PATH" "$ALARM_CHROOT"
+  fi
+  [[ -x "$ALARM_CHROOT/usr/bin/pacman" ]] || die "解包后仍找不到 pacman，底包可能损坏"
   FRESH_CHROOT=1
 else
   FRESH_CHROOT=0
@@ -93,12 +103,17 @@ alarm_mount_virtfs "$ALARM_CHROOT"
 # ---------------------------------------------------------------------------
 # 2) 镜像源 / DNS / 架构
 # ---------------------------------------------------------------------------
-log "写入 pacman 镜像源: $ALARM_MIRROR/\$arch/\$repo"
-install -d "$ALARM_CHROOT/etc/pacman.d"
-cat > "$ALARM_CHROOT/etc/pacman.d/mirrorlist" <<EOF
+if [[ "$ROOTFS_BASE" == "holo-core" ]]; then
+  # Holo Core：core + extra 两个仓库，SigLevel = Optional（包未强制签名）
+  holo_write_repo_config "$ALARM_CHROOT"
+else
+  log "写入 pacman 镜像源: $ALARM_MIRROR/\$arch/\$repo"
+  install -d "$ALARM_CHROOT/etc/pacman.d"
+  cat > "$ALARM_CHROOT/etc/pacman.d/mirrorlist" <<EOF
 # archlinux-sheng：由 scripts/host/20-alarm-chroot.sh 生成（构建用 chroot，非最终镜像）
 Server = ${ALARM_MIRROR}/\$arch/\$repo
 EOF
+fi
 
 # DNS：chroot 里没有任何 resolver 在跑，必须给它一个可用的 /etc/resolv.conf。
 # 两个已知坑（首次实跑时就是这里失败：chroot 内报 "Could not resolve host"）：
@@ -132,9 +147,10 @@ grep -qE '^[[:space:]]*Architecture[[:space:]]*=[[:space:]]*aarch64' "$ALARM_CHR
 alarm_tune_pacman_for_chroot "$ALARM_CHROOT" --no-checkspace
 
 # ---------------------------------------------------------------------------
-# 3) 密钥环（只有全新 chroot 才需要）
+# 3) 密钥环（只有全新 chroot 且底包为 ALARM 时才需要）
+#    Holo Core 的仓库是 SigLevel = Optional（包未强制签名），不需要 populate
 # ---------------------------------------------------------------------------
-if [[ "$FRESH_CHROOT" -eq 1 ]]; then
+if [[ "$FRESH_CHROOT" -eq 1 && "$ROOTFS_BASE" != "holo-core" ]]; then
   log "初始化 pacman 密钥环"
   alarm_chroot_run "$ALARM_CHROOT" pacman-key --init || die "pacman-key --init 失败"
   alarm_chroot_run "$ALARM_CHROOT" pacman-key --populate archlinuxarm || die "pacman-key --populate archlinuxarm 失败"

@@ -59,6 +59,11 @@ on:
         required: false
         type: string
         default: 'master'
+      rootfs_base:
+        description: '底包：alarm（Arch Linux ARM 滚动）或 holo-core（Valve/Collabora 的 Steam Frame aarch64 预览底座）'
+        required: false
+        type: string
+        default: 'alarm'
     outputs:
       kernel_version:
         description: 'custom_build 时的内核版本'
@@ -67,6 +72,10 @@ on:
 permissions:
   contents: read
   packages: read
+
+# 底包选择下发给所有作业与脚本（脚本按它决定底包地址、仓库与构建 chroot 目录）
+env:
+  ROOTFS_BASE: ${{ inputs.rootfs_base }}
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -126,7 +135,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
 
       - name: Prepare ALARM Chroot
         if: inputs.kernel_source == 'custom_build'
@@ -134,13 +143,13 @@ jobs:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
 
       - name: Package Kernel (makepkg)
         if: inputs.kernel_source == 'custom_build'
         run: |
           chmod +x scripts/host/21-build-pkg.sh
-          sudo bash scripts/host/21-build-pkg.sh linux-xiaomi-sheng/custom
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/21-build-pkg.sh linux-xiaomi-sheng/custom
           # 报告内核版本（_packages.yml 的 kernel_version 输出）：文件名为
           # linux-xiaomi-sheng-<kver>-<pkgrel>-aarch64.pkg.tar.*
           kpkg="$(basename "$(ls -1 pkgs/linux-xiaomi-sheng-*.pkg.tar.* | head -n1)")"
@@ -152,7 +161,7 @@ jobs:
       - name: Save ALARM Build Chroot
         if: inputs.kernel_source == 'custom_build' && steps.alarmcache.outputs.cache-hit != 'true'
         run: |
-          sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
 
       - name: Upload Kernel Package
         if: inputs.kernel_source == 'custom_build'
@@ -217,7 +226,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
 
       - name: Prepare ALARM Chroot
         if: inputs.kernel_source != 'custom_build'
@@ -225,18 +234,18 @@ jobs:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
 
       - name: Package Kernel (makepkg)
         if: inputs.kernel_source != 'custom_build'
         run: |
           chmod +x scripts/host/21-build-pkg.sh
-          sudo bash scripts/host/21-build-pkg.sh linux-xiaomi-sheng/prebuilt
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/21-build-pkg.sh linux-xiaomi-sheng/prebuilt
 
       - name: Save ALARM Build Chroot
         if: inputs.kernel_source != 'custom_build' && steps.alarmcache.outputs.cache-hit != 'true'
         run: |
-          sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
 
       - name: Upload Kernel Package
         if: inputs.kernel_source != 'custom_build'
@@ -265,20 +274,20 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Build (makepkg)
         run: |
           chmod +x scripts/host/21-build-pkg.sh
-          sudo bash scripts/host/21-build-pkg.sh fastrpc
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/21-build-pkg.sh fastrpc
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: fastrpc-pkg
@@ -305,20 +314,20 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Build (makepkg)
         run: |
           chmod +x scripts/host/21-build-pkg.sh
-          sudo bash scripts/host/21-build-pkg.sh libssc
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/21-build-pkg.sh libssc
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: libssc-pkg
@@ -350,13 +359,13 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Build (makepkg, 预装 libssc)
         run: |
           chmod +x scripts/host/21-build-pkg.sh
@@ -365,7 +374,7 @@ jobs:
           sudo env PKG_PREINSTALL="$PRE" bash scripts/host/21-build-pkg.sh iio-sensor-proxy
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: iio-sensor-proxy-pkg
@@ -391,20 +400,20 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Package (makepkg)
         run: |
           chmod +x scripts/host/21-build-pkg.sh
-          sudo bash scripts/host/21-build-pkg.sh sheng-sensors
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/21-build-pkg.sh sheng-sensors
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: sheng-sensors-pkg
@@ -430,13 +439,13 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Build (makepkg)
         env:
           SHENG_DEVAUTH_REPO: https://github.com/ianchb/sheng_devauth
@@ -446,7 +455,7 @@ jobs:
             bash scripts/host/21-build-pkg.sh sheng-devauth
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: sheng-devauth-pkg
@@ -472,20 +481,20 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Package (makepkg)
         run: |
           chmod +x scripts/host/21-build-pkg.sh
-          sudo bash scripts/host/21-build-pkg.sh alsa-xiaomi-sheng
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/21-build-pkg.sh alsa-xiaomi-sheng
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: alsa-xiaomi-sheng-pkg
@@ -520,20 +529,20 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Package (makepkg)
         run: |
           chmod +x scripts/host/21-build-pkg.sh
-          sudo bash scripts/host/21-build-pkg.sh firmware-xiaomi-sheng
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" bash scripts/host/21-build-pkg.sh firmware-xiaomi-sheng
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: firmware-xiaomi-sheng-pkg
@@ -566,13 +575,13 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /mnt/alarm-chroot.tar.zst
-          key: alarm-chroot-v1-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh') }}
+          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: /mnt/alarm-chroot.tar.zst
         run: |
           chmod +x scripts/host/20-alarm-chroot.sh
-          sudo env ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
+          sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_TAR="$ALARM_CHROOT_TAR" bash scripts/host/20-alarm-chroot.sh
       - name: Repack to pacman packages
         run: |
           chmod +x scripts/host/22-repack-deb.sh
@@ -584,7 +593,7 @@ jobs:
           sudo env MAKEPKG_FLAGS="-df" bash scripts/host/22-repack-deb.sh deb-out
       - name: Save ALARM Build Chroot
         if: steps.alarmcache.outputs.cache-hit != 'true'
-        run: sudo env ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
+        run: sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_CHROOT_PACK=/mnt/alarm-chroot.tar.zst bash scripts/host/20-alarm-chroot.sh
       - uses: actions/upload-artifact@v7
         with:
           name: xiaomi-pkgs

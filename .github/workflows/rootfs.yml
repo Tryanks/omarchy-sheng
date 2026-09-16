@@ -42,6 +42,14 @@ on:
         options:
           - 'none'
           - 'firefox'
+      rootfs_base:
+        description: '底包：alarm = Arch Linux ARM 滚动仓库；holo-core = Valve/Collabora 的 Steam Frame aarch64 预览底座（源冻结在 2025-11，只支持 KDE Plasma / server，无 plymouth/GNOME）'
+        required: true
+        type: choice
+        default: 'alarm'
+        options:
+          - 'alarm'
+          - 'holo-core'
       autologin:
         description: '自动登录'
         required: false
@@ -162,6 +170,7 @@ jobs:
       kernel_config: ${{ inputs.kernel_config }}
       firmware_repo: ${{ inputs.firmware_repo }}
       firmware_branch: ${{ inputs.firmware_branch }}
+      rootfs_base: ${{ inputs.rootfs_base }}
 
   build-rootfs:
     name: Assemble Arch Linux ARM RootFS
@@ -170,6 +179,7 @@ jobs:
     needs: [packages]
     env:
       ROOTFS_MOUNT: /mnt/rootfs
+      ROOTFS_BASE: ${{ inputs.rootfs_base }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -183,7 +193,23 @@ jobs:
           IN_CUSTOM_PARTITION: ${{ inputs.custom_partition }}
           IN_USERNAME: ${{ inputs.username }}
           IN_HOSTNAME: ${{ inputs.hostname }}
+          IN_DESKTOP: ${{ inputs.desktop }}
+          IN_PLASMA_MOBILE: ${{ inputs.plasma_mobile }}
+          IN_QUIET_BOOT: ${{ inputs.quiet_boot }}
         run: |
+          # 底包能力检查：holo-core 源里没有 GNOME/gdm、plasma-mobile、plymouth，
+          # 与其在安装阶段装不上再失败，不如在这里明确报错。
+          if [ "$ROOTFS_BASE" = "holo-core" ]; then
+            case "$IN_DESKTOP" in
+              GNOME) echo "::error::holo-core 源里没有 GNOME（缺 gnome-shell/gdm），请选 KDE Plasma 或 server"; exit 1 ;;
+            esac
+            if [ "$IN_PLASMA_MOBILE" = "true" ]; then
+              echo "::error::holo-core 源里没有 plasma-mobile，请用 plasma-desktop（plasma_mobile=false）"; exit 1
+            fi
+            if [ "$IN_QUIET_BOOT" = "true" ] && [ "$IN_DESKTOP" != "server" ]; then
+              echo "::warning::holo-core 源里没有 plymouth，本次构建将不安装开机画面（quiet_boot 被忽略）"
+            fi
+          fi
           # 密码优先级：password 输入项 > ROOTFS_PASSWORD secret > 默认 password。
           # 输入项不是 secret（会明文显示在本次运行的输入摘要里），因此立刻 add-mask，
           # 保证它不会出现在后续任何日志中。
@@ -229,6 +255,10 @@ jobs:
           QUIET="false"
           if [ "${{ inputs.quiet_boot }}" = "true" ] && [ "${{ inputs.desktop }}" != "server" ]; then
             QUIET="true"
+          fi
+          # holo-core 源里没有 plymouth，静默启动无法实现 → 强制关闭
+          if [ "$ROOTFS_BASE" = "holo-core" ]; then
+            QUIET="false"
           fi
 
           case "${{ inputs.boot_mode }}" in
@@ -362,14 +392,21 @@ jobs:
           chmod +x scripts/host/00-prepare-image.sh
           sudo bash scripts/host/00-prepare-image.sh rootfs.img "${{ inputs.rootfs_size }}" "$ROOTFS_MOUNT"
 
-      - name: Bootstrap Arch Linux ARM
+      - name: Bootstrap Rootfs Base (${{ inputs.rootfs_base }})
         env:
           ALARM_TARBALL_URL: http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
           ALARM_MIRROR: http://mirror.archlinuxarm.org
+          HOLO_SNAPSHOT: mash-20251118.3
         run: |
-          chmod +x scripts/host/01-bootstrap-arch.sh
-          sudo env ALARM_TARBALL_URL="$ALARM_TARBALL_URL" ALARM_MIRROR="$ALARM_MIRROR" \
-            bash scripts/host/01-bootstrap-arch.sh "$ROOTFS_MOUNT"
+          if [ "$ROOTFS_BASE" = "holo-core" ]; then
+            chmod +x scripts/host/01b-bootstrap-holo.sh
+            sudo env ROOTFS_BASE="$ROOTFS_BASE" HOLO_SNAPSHOT="$HOLO_SNAPSHOT" \
+              bash scripts/host/01b-bootstrap-holo.sh "$ROOTFS_MOUNT"
+          else
+            chmod +x scripts/host/01-bootstrap-arch.sh
+            sudo env ROOTFS_BASE="$ROOTFS_BASE" ALARM_TARBALL_URL="$ALARM_TARBALL_URL" ALARM_MIRROR="$ALARM_MIRROR" \
+              bash scripts/host/01-bootstrap-arch.sh "$ROOTFS_MOUNT"
+          fi
 
       - name: Mount Chroot Environment
         run: |
@@ -391,6 +428,7 @@ jobs:
           PARTITION_LABEL='${{ steps.parse.outputs.label }}'
           KERNEL_SOURCE='${{ inputs.kernel_source }}'
           ARCH='aarch64'
+          ROOTFS_BASE='${{ inputs.rootfs_base }}'
           EOF
           sudo chmod 600 "$ROOTFS_MOUNT/root/build.env"
           echo "build.env 内容："

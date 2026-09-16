@@ -216,7 +216,14 @@ if [[ "${AUTOLOGIN:-false}" == "true" ]]; then
       [[ -f /etc/gdm/custom.conf ]] && pass "GDM 自动登录已配置" || fail "缺少 /etc/gdm/custom.conf"
       ;;
     "KDE Plasma")
-      [[ -f /etc/sddm.conf.d/autologin.conf ]] && pass "SDDM 自动登录已配置" || fail "缺少 /etc/sddm.conf.d/autologin.conf"
+      if [[ "${ROOTFS_BASE:-alarm}" == "holo-core" ]]; then
+        # holo 源没有 sddm：自动登录由 plasma-autologin.service 直接起会话
+        systemctl is-enabled plasma-autologin.service >/dev/null 2>&1 \
+          && pass "Plasma 自动登录服务已启用（holo 模式，无显示管理器）" \
+          || fail "缺少已启用的 plasma-autologin.service"
+      else
+        [[ -f /etc/sddm.conf.d/autologin.conf ]] && pass "SDDM 自动登录已配置" || fail "缺少 /etc/sddm.conf.d/autologin.conf"
+      fi
       ;;
   esac
 fi
@@ -230,7 +237,13 @@ case "${DESKTOP:-server}" in
     fi
     ;;
   "KDE Plasma")
-    if systemctl is-enabled sddm.service >/dev/null 2>&1; then
+    if [[ "${ROOTFS_BASE:-alarm}" == "holo-core" ]]; then
+      if [[ "${AUTOLOGIN:-false}" == "true" ]] && ! systemctl is-enabled plasma-autologin.service >/dev/null 2>&1; then
+        fail "plasma-autologin.service 未启用"
+      else
+        pass "holo 模式：无显示管理器（Plasma 会话由 systemd 拉起）"
+      fi
+    elif systemctl is-enabled sddm.service >/dev/null 2>&1; then
       pass "sddm 已启用"
     else
       fail "sddm 未启用"

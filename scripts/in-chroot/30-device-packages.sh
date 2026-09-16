@@ -30,6 +30,22 @@ shopt -s nullglob
 pkgs=(/tmp/pkgs/*.pkg.tar.*)
 [[ "${#pkgs[@]}" -gt 0 ]] || die "/tmp/pkgs 下没有 .pkg.tar.*"
 
+# holo-core 源里没有 fprintd/libfprint（指纹栈），本仓库的 xiaomi-sheng-fingerprint
+# 依赖 fprintd，装不上。这里先剔除该包并明确告警，其余设备包照常安装。
+if [[ "${ROOTFS_BASE:-alarm}" == "holo-core" ]]; then
+  keep=()
+  for f in "${pkgs[@]}"; do
+    case "$(basename "$f")" in
+      xiaomi-sheng-fingerprint-*)
+        warn "holo-core 源缺 fprintd/libfprint，跳过指纹包: $(basename "$f")"
+        ;;
+      *) keep+=("$f") ;;
+    esac
+  done
+  pkgs=("${keep[@]}")
+  [[ "${#pkgs[@]}" -gt 0 ]] || die "剔除指纹包后没有可安装的设备包"
+fi
+
 log "待安装设备包（${#pkgs[@]} 个）："
 for f in "${pkgs[@]}"; do
   # 包名/版本直接从文件名解析（makepkg 的命名规则：
