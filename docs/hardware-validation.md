@@ -30,8 +30,25 @@ slot B. Automatic Wi-Fi, key-based SSH, SDDM/UWSM, Quickshell, the software curs
 Fcitx5 Pinyin was exercised in Foot by entering `nihao` and committing `你好`.
 No failed system or user units were present after first login.
 
+After that boot test, userdata was expanded to the original ~232.4 GiB extent,
+the separate Linux partition was removed, and another boot passed. The ext4 root
+grew automatically to ~229 GiB with ~211 GiB available. Wi-Fi and Chinese input
+configuration survived the reboot. Nautilus displayed Chinese UI text.
+
+Upstream user finalization was rerun once to complete the developer setup;
+both `finalize-user` and `first-run-user` markers are now present, including
+Node.js 26.8.2 installed through mise. The first-run completion marker alone is
+not sufficient evidence that user finalization succeeded.
+
+The complete upstream update flow was exercised on the installed system and
+exited 0: ALARM keyring, source-qualified system packages, AUR checks, mise,
+orphan cleanup and shell reload. A root-side version-check failure caused by
+sudo clearing XDG_RUNTIME_DIR was reproduced, fixed and regression-tested. The
+release packager applies that verifier fix to both rootfs images, reruns it
+inside each image and checks ext4 again; source metadata records the overlay SHA.
+
 The deployment copy was privately seeded with Wi-Fi and SSH access. These are
-absent from public CI images. Installed package manifests match the CI single
+absent from public CI images. Initial build package manifests match the CI single
 image except `at-spi2-core` (local mirror 2.60.6-1; CI 2.60.7-1). The published
 CI rootfs bytes have not themselves been flashed; a new flash of the dual image
 has not been independently tested. Both CI images passed the same build and

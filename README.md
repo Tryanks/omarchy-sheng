@@ -88,6 +88,10 @@ Device boot/kernel updates are managed separately. New Omarchy releases require 
 is experimental. Keep backups before upgrades. Settings and package versions
 used by an image are recorded in its package manifest.
 
+The upstream updater checks for a PC-style `vmlinuz` when deciding whether to
+offer a reboot. On sheng it can show "Linux kernel has been updated" even when
+the kernel is unchanged; that message does not mean it flashed a boot image.
+
 ## Scope and sources
 
 - [Upstream device build documentation](README.upstream.md)

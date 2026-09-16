@@ -26,6 +26,11 @@ CI rootfs bytes were build/filesystem-checked, not separately flashed; the exact
 local/CI package difference and test scope are recorded in
 [hardware validation](https://github.com/Tryanks/omarchy-sheng/blob/main/docs/hardware-validation.md).
 
+After consolidation, the single-system root expanded to ~229 GiB and booted
+again. The full upstream update flow completed successfully after the included
+sudo/runtime-directory verification fix. The fix is checked inside both release
+images and recorded as a release overlay in their source metadata.
+
 ## Known limits
 
 Automatic rotation, pen pressure, fingerprint enrollment, cameras, audio quality,
