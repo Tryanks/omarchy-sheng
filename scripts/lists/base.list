@@ -11,6 +11,10 @@
 #     locale 由 glibc 的 locale-gen 生成（本仓库的 40-system-config.sh 负责）；
 #     时区数据在 tzdata 包里（已列出，供 timedatectl 使用）
 systemd
+# /sbin/init 由 systemd-sysvcompat 提供 —— **必须显式安装**：
+# 缺了它内核会 panic（No working init found），设备侧表现为开机全黑、背光不亮。
+# ALARM tarball 自带，但 Holo Core 底座不带（实机黑屏就是它），显式列出以防任一底包缺。
+systemd-sysvcompat
 sudo
 kmod
 e2fsprogs

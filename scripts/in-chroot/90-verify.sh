@@ -57,6 +57,35 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 1.5) 可引导性：内核 exec 的第一个进程
+#   内核 cmdline 没有 init= 参数，因此必须存在 /sbin/init（Arch 由 systemd-sysvcompat
+#   提供，指向 /usr/lib/systemd/systemd）。缺了它内核会 panic：
+#     Kernel panic - not syncing: No working init found.
+#   设备侧表现为**开机全黑、背光不亮**，与"刷砖/内核没起来"完全一样，极难排查。
+#   Holo Core 底座（只有 systemd + systemd-libs）就缺这个包 —— 实机黑屏事故的根因。
+# ---------------------------------------------------------------------------
+INIT_OK=0
+for cand in /sbin/init /usr/sbin/init /usr/lib/systemd/systemd; do
+  if [[ -x "$cand" ]]; then
+    INIT_OK=1
+    if [[ -L "$cand" ]]; then
+      pass "init 存在: $cand -> $(readlink -f "$cand")"
+    else
+      pass "init 存在: $cand"
+    fi
+    break
+  fi
+done
+if [[ "$INIT_OK" -eq 0 ]]; then
+  fail "找不到 /sbin/init 或 /usr/lib/systemd/systemd —— 内核会 panic（No working init found），设备开机全黑。请安装 systemd-sysvcompat"
+fi
+if pac_installed systemd-sysvcompat; then
+  pass "systemd-sysvcompat 已安装（提供 /sbin/init）"
+else
+  warn "未安装 systemd-sysvcompat（若 /sbin/init 由其它方式提供可忽略）"
+fi
+
+# ---------------------------------------------------------------------------
 # 2) 内核模块索引（无 initramfs 启动的前提）
 # ---------------------------------------------------------------------------
 KVER="$(ls -1 /usr/lib/modules 2>/dev/null | head -n1 || true)"

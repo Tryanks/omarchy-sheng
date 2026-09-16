@@ -5,6 +5,9 @@
 #   * fprintd  → 指纹栈缺失，holo 模式下不安装 xiaomi-sheng-fingerprint（见 30-device-packages.sh）
 # 其余包名与 ALARM 版一致（已逐个核对存在于 holo core/extra）。
 systemd
+# /sbin/init 由 systemd-sysvcompat 提供。Holo Core 底座（只有 systemd / systemd-libs）
+# **不带**这个包，缺了它内核会 panic（No working init found）→ 实机开机全黑、背光不亮。
+systemd-sysvcompat
 sudo
 kmod
 e2fsprogs
