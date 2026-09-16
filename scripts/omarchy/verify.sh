@@ -22,4 +22,5 @@ test ! -e /etc/mkinitcpio.conf.d/omarchy_hooks.conf
 test ! -e /etc/limine-entry-tool.d/omarchy-uki.conf
 [[ ${1:-} == --payload-only ]] || python3 /usr/local/lib/omarchy-sheng/verify-power.py
 python3 -c 'import gi; gi.require_version("Gtk", "4.0"); from gi.repository import Gtk, Gio'
+python3 /usr/local/lib/omarchy-sheng/verify-desktop.py
 echo 'Omarchy ARM payload and runtime linkage verified.'

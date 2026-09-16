@@ -148,7 +148,7 @@ on:
         description: 'rootfs.img 初始大小（构建后会收缩，首启自动扩容）'
         required: false
         type: string
-        default: '10G'
+        default: '20G'
       shrink_image:
         description: '构建后收缩镜像（e2fsck + resize2fs -M）'
         required: false

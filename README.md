@@ -84,7 +84,7 @@ powered-off charging cycle or battery depletion; enabling it is not proof that
 zero-battery recovery or charging protections are qualified.
 
 Open **Fingerprint Settings / 指纹设置** in the application launcher to enroll,
-verify or delete a power-button fingerprint. The GTK window shows the FPC1553
+verify or delete a power-button fingerprint. The native Omarchy Quickshell window shows the FPC1553
 sensor's enrollment progress and allows cancellation. Only a successful
 verification followed by administrator authorization enables fingerprint lock
 authentication; password unlock remains available. No fingerprints ship in an
@@ -94,6 +94,41 @@ Administrator prompts authenticate the active local wheel user, avoiding the
 ALARM base image's residual `alarm` account.
 An [optional fingerprint latency patch](docs/fingerprint-driver.md) is being
 validated separately; preview.2 keeps the upstream finger-removal behavior.
+
+## Tablet desktop integration (next image)
+
+The current source adds native Omarchy QML settings for the pen and fingerprint
+reader, the pinned [System Monitor plugin](https://github.com/rmacy/omarchy-system-monitor),
+and a numeric battery percentage. The monitor defaults to CPU usage, memory usage
+and one `cpuss0_thermal` CPU temperature; it does not claim Adreno GPU utilization.
+Pen battery readings are validated before display, and pen Bluetooth settings
+require the matching physical pen. The physical screen corners constrain only
+the cursor; usable straight screen edges are retained.
+
+Waydroid uses verified, pinned public ARM64-only Android images and initializes
+locally on first boot. A version-checked OMX workaround avoids the missing vendor
+codec service retry loop; video decoding uses software codecs. Open an APK with
+**Install Android APK** to install it into the local user session. Android apps,
+accounts, installed APKs and user data are never copied into the image. ARM-only
+images do not run x86-only APKs. See [desktop integration](docs/desktop-integration.md)
+for installation and validation scope.
+
+Tcode 0.1.52 is preinstalled as `tcode-bin`, using a reviewed AUR recipe and the
+reissued ARM64 release. It is managed by pacman and can follow subsequent AUR
+updates through `yay`; no agent account or personal project is included.
+
+USB ADB is **enabled by default**, without pairing or a password. A USB host can
+open a Linux shell as the image's configured desktop user, with that user's sudo
+policy. It is USB-only and does not listen on TCP port 5555. To opt out:
+
+```sh
+sudo systemctl disable --now omarchy-sheng-adb.service
+# Re-enable later:
+sudo systemctl enable --now omarchy-sheng-adb.service
+```
+
+These additions are not present in the older published preview.2 image. Live
+device checks and a clean-image first boot are separate validation steps.
 
 For existing installations, apply these defaults as root from this checkout:
 

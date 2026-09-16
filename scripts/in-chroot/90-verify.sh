@@ -226,6 +226,7 @@ case "${DESKTOP:-server}" in
       fail "Omarchy verification failed"
     fi
     systemctl is-enabled sddm.service >/dev/null 2>&1 && pass "SDDM enabled" || fail "SDDM disabled"
+    python3 /usr/local/lib/omarchy-sheng/verify-desktop.py --image && pass "Public desktop image state" || fail "Desktop image integration"
     systemctl is-enabled xiaomi-sheng-thp.service >/dev/null 2>&1 && pass "Touch enabled" || fail "THP disabled"
     if [[ "${AUTOLOGIN:-false}" == "true" ]]; then
       grep -qx 'Session=omarchy.desktop' /etc/sddm.conf.d/autologin.conf && pass "Omarchy autologin" || fail "Wrong autologin session"

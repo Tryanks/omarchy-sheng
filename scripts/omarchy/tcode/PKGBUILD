@@ -1,0 +1,48 @@
+# Based on AUR tcode-bin, revision 47f070ef530b4e22f5cdd8233b6020498fe19c83.
+# ARM image snapshot: use the reissued release (2026-09-16 21:56 UTC),
+# never the withdrawn 0.1.52 archive; include upstream MIT license.
+# Maintainer: Tryanks
+
+pkgname=tcode-bin
+pkgver=0.1.52
+pkgrel=1
+pkgdesc="A native desktop app for the coding agents you already use."
+arch=('aarch64')
+url="https://github.com/Tryanks/tcode"
+license=('MIT')
+depends=(
+  'alsa-lib'
+  'fontconfig'
+  'libxkbcommon'
+  'libxkbcommon-x11'
+  'libxcb'
+  'libx11'
+  'mesa'
+  'vulkan-icd-loader'
+  'wayland'
+)
+optdepends=(
+  'amdvlk: AMD GPU Vulkan support'
+  'nvidia-utils: NVIDIA GPU Vulkan support'
+  'vulkan-intel: Intel GPU Vulkan support'
+  'vulkan-radeon: AMD Radeon Vulkan support'
+)
+source_aarch64=("tcode-${pkgver}-linux-arm64.tar.gz::https://github.com/Tryanks/tcode/releases/download/v${pkgver}/tcode-${pkgver}-linux-arm64.tar.gz")
+sha256sums_aarch64=('dde8b9a9e9f4896173f5541f3911de439756f71cee6c0e4868d72b189e4d694a')
+
+options=('!debug' '!strip')
+
+package() {
+  install -Dm644 "${startdir}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  local _archdir
+  case "$CARCH" in
+    x86_64) _archdir="x64" ;;
+    aarch64) _archdir="arm64" ;;
+  esac
+  cd "${srcdir}/tcode-${pkgver}-linux-${_archdir}"
+  install -Dm755 bin/tcode "${pkgdir}/usr/bin/tcode"
+  install -Dm644 share/applications/com.tryanks.tcode.desktop \
+    "${pkgdir}/usr/share/applications/com.tryanks.tcode.desktop"
+  install -Dm644 share/icons/hicolor/1024x1024/apps/com.tryanks.tcode.png \
+    "${pkgdir}/usr/share/icons/hicolor/1024x1024/apps/com.tryanks.tcode.png"
+}

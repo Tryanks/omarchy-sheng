@@ -1,0 +1,14 @@
+[Unit]
+Description=Initialize bundled Waydroid images for Sheng
+After=local-fs.target
+Before=waydroid-container.service
+ConditionPathExists=!/var/lib/omarchy-sheng/waydroid-ready
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/omarchy-sheng/waydroid/first-boot.py
+TimeoutStartSec=180
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

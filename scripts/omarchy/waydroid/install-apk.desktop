@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Install Android App
+Name[zh_CN]=安装 Android 应用
+Exec=waydroid-install-apk %F
+Icon=waydroid
+Terminal=false
+Categories=System;PackageManager;
+MimeType=application/vnd.android.package-archive;

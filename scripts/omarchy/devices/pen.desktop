@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Stylus Status
+Name[zh_CN]=手写笔状态
+Comment=Battery, connection and Focus Pen Pro controls
+Comment[zh_CN]=查看电量、连接状态及焦点触控笔 Pro 设置
+Exec=omarchy-sheng-devices pen
+Icon=xiaomi-pen-status
+Terminal=false
+Categories=Settings;HardwareSettings;

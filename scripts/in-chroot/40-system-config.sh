@@ -118,6 +118,8 @@ systemctl enable NetworkManager.service || warn "启用 NetworkManager 失败"
 case "$DESKTOP" in
   Omarchy)
     python3 /usr/local/lib/omarchy-sheng/configure-power.py
+    install -d /etc/systemd/system/omarchy-sheng-adb.service.d
+    printf '[Service]\nEnvironment=ADBD_USER=%s\n' "$USERNAME" > /etc/systemd/system/omarchy-sheng-adb.service.d/50-user.conf
     if [[ "$AUTOLOGIN" == "true" ]]; then
       install -d /etc/sddm.conf.d
       printf '[Autologin]\nUser=%s\nSession=omarchy.desktop\n' "$USERNAME" > /etc/sddm.conf.d/autologin.conf

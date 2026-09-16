@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "sheng.devices",
+  "name": "Sheng devices",
+  "version": "1.0.0",
+  "author": "omarchy-sheng",
+  "description": "Theme-native stylus and fingerprint settings for Xiaomi Pad 6S Pro.",
+  "kinds": ["panel", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {"panel": "Devices.qml", "barWidget": "PenWidget.qml"},
+  "barWidget": {"displayName": "Stylus", "category": "Hardware", "allowMultiple": false, "defaultSection": "right", "defaults": {}, "schema": []}
+}

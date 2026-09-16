@@ -1,0 +1,8 @@
+// APK installation into the active user's own Android session; no host shell.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/local/lib/omarchy-sheng/waydroid/install-apk-helper.py" &&
+        subject.local && subject.active && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

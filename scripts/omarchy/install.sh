@@ -14,7 +14,9 @@ install -m755 "$HERE/pkg-install.sh" /usr/local/bin/omarchy-pkg-install
 install -m755 "$HERE/pkg-present.sh" /usr/local/bin/omarchy-pkg-present
 install -m755 "$HERE/pkg-missing.sh" /usr/local/bin/omarchy-pkg-missing
 install -m644 "$HERE/session.lua" /usr/local/lib/omarchy-sheng/session.lua
+install -m644 "$HERE/rounded-cursor.lua" /usr/local/lib/omarchy-sheng/rounded-cursor.lua
 install -m755 "$HERE/verify-power.py" /usr/local/lib/omarchy-sheng/verify-power.py
+install -m755 "$HERE/verify-desktop.py" /usr/local/lib/omarchy-sheng/verify-desktop.py
 install -m755 "$HERE/configure-power.py" /usr/local/lib/omarchy-sheng/configure-power.py
 install -m755 "$HERE/"fingerprint*.py "$HERE/fingerprint-launch.sh" /usr/local/lib/omarchy-sheng/
 install -m644 "$HERE/fingerprint.desktop" /usr/local/lib/omarchy-sheng/
@@ -53,6 +55,10 @@ mapfile -t desktop < <(grep -vE '^\s*(#|$)' "$HERE/packages.list")
 env OMARCHY_UPDATE_PACMAN=1 pacman -Syu --needed --noconfirm "${targets[@]}" "${desktop[@]}"
 pacman -D --asexplicit "${desktop[@]}"
 bash "$HERE/default-apps.sh"
+bash "$HERE/install-devices.sh"
+bash "$HERE/install-usb-adb.sh"
+bash "$HERE/install-tcode.sh"
+bash "$HERE/install-waydroid.sh"
 # Shell settings stay upstream-owned. Only these two user override files differ.
 install -m644 "$HERE/monitors.lua" /etc/skel/.config/hypr/monitors.lua
 printf 'dofile("/usr/local/lib/omarchy-sheng/session.lua")\n' > /etc/skel/.config/hypr/autostart.lua

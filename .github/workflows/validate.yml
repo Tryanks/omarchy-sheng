@@ -126,6 +126,7 @@ jobs:
           python3 tests/power-config.py
           python3 tests/fingerprint-operations.py
           python3 tests/charger-readiness.py
+          python3 tests/desktop-integration.py
 
       - name: Rounded pointer boundary regression
         run: lua5.4 tests/rounded-cursor.lua
