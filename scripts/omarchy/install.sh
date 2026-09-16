@@ -41,6 +41,7 @@ omarchy_sheng_prepare_sources
 mapfile -t targets < <(omarchy_sheng_upgrade_args)
 mapfile -t desktop < <(grep -vE '^\s*(#|$)' "$HERE/packages.list")
 env OMARCHY_UPDATE_PACMAN=1 pacman -Syu --needed --noconfirm "${targets[@]}" "${desktop[@]}"
+pacman -D --asexplicit "${desktop[@]}"
 bash "$HERE/default-apps.sh"
 # Shell settings stay upstream-owned. Only these two user override files differ.
 install -m644 "$HERE/monitors.lua" /etc/skel/.config/hypr/monitors.lua

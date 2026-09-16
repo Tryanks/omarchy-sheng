@@ -32,7 +32,13 @@ esac
 
 log "安装 Firefox（Arch 官方仓库）"
 # 与其它阶段一致：先 -Syu 对齐（Arch 的 firefox 依赖较多，避免部分升级）
-pacman -Syu --noconfirm --needed --color never
+if [[ ${DESKTOP:-} == Omarchy ]]; then
+  source /usr/local/lib/omarchy-sheng/package-sources.sh
+  mapfile -t targets < <(omarchy_sheng_upgrade_args)
+  env OMARCHY_UPDATE_PACMAN=1 pacman -Syu --noconfirm --needed --color never "${targets[@]}"
+else
+  pacman -Syu --noconfirm --needed --color never
+fi
 pac_install firefox
 
 log "Firefox 安装完成: $(pac_version firefox)"

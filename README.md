@@ -5,9 +5,10 @@ Forked from [code002-2/archlinux-sheng](https://github.com/code002-2/archlinux-s
 The device kernel, Android boot image, firmware and ext4 rootfs stay with sheng.
 Omarchy supplies Hyprland, Quickshell, UWSM, SDDM and user configuration.
 
-**Bring-up in progress.** Hardware results and downloadable image links will be
-recorded here after verification. Do not interpret a successful build as a
-hardware test. This is a community port, not an official Omarchy release.
+**Running on hardware.** Omarchy starts through SDDM/UWSM on sheng, with the
+official keyboard, touchpad and touch confirmed. See [hardware validation](docs/hardware-validation.md)
+for exact versions and limits. Release image packaging is in progress.
+Do not interpret a successful build as a hardware test. This is a community port, not an official Omarchy release.
 
 ## Images
 

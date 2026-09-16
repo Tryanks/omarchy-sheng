@@ -121,7 +121,7 @@ case "$DESKTOP" in
       install -d /etc/sddm.conf.d
       printf '[Autologin]\nUser=%s\nSession=omarchy.desktop\n' "$USERNAME" > /etc/sddm.conf.d/autologin.conf
     fi
-    systemctl enable sddm.service bluetooth.service power-profiles-daemon.service
+    systemctl enable sddm.service bluetooth.service power-profiles-daemon.service avahi-daemon.service
     systemctl disable systemd-networkd-wait-online.service || true
     systemctl set-default graphical.target
     ;;

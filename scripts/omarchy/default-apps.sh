@@ -37,5 +37,10 @@ while read -r package; do
 done < /usr/share/omarchy/install/omarchy-base.packages
 mapfile -t core_args < <(omarchy_sheng_upgrade_args)
 env OMARCHY_UPDATE_PACMAN=1 pacman -Su --needed --noconfirm "${core_args[@]}" "${targets[@]}"
+# --needed can leave a previously installed dependency marked as a dependency.
+# These are default applications, so removing a former desktop must retain them.
+names=()
+for target in "${targets[@]}"; do names+=("${target#*/}"); done
+(( ${#names[@]} == 0 )) || pacman -D --asexplicit "${names[@]}"
 install -m644 "$extra_targets" /etc/omarchy-sheng/extra-targets.list
 cat "$report"

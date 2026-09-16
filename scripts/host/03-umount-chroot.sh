@@ -12,10 +12,16 @@ require_root
 
 MOUNT="${1:-/mnt/rootfs}"
 
+# pacman-key leaves GnuPG daemons rooted in the image. Stop them before unmount;
+# a lazy unmount would hide a still-live filesystem from the final fsck step.
+if [[ -x "$MOUNT/usr/bin/gpgconf" ]]; then
+  chroot "$MOUNT" gpgconf --homedir /etc/pacman.d/gnupg --kill all || true
+fi
+
 for d in dev/pts dev proc sys; do
   target="$MOUNT/$d"
   if mountpoint -q "$target"; then
-    umount "$target" 2>/dev/null || umount -l "$target" 2>/dev/null || warn "卸载失败: $target"
+    umount "$target" || die "Cannot unmount $target; refusing lazy filesystem cleanup"
     log "已卸载 $target"
   fi
 done
