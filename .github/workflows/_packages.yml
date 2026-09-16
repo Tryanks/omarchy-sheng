@@ -135,7 +135,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
 
       - name: Prepare ALARM Chroot
         if: inputs.kernel_source == 'custom_build'
@@ -226,7 +226,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
 
       - name: Prepare ALARM Chroot
         if: inputs.kernel_source != 'custom_build'
@@ -274,7 +274,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
@@ -314,7 +314,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
@@ -359,7 +359,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
@@ -400,7 +400,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
@@ -439,7 +439,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
@@ -481,7 +481,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
@@ -529,7 +529,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
@@ -575,7 +575,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .chroot-cache/chroot.tar.zst
-          key: chroot-v2-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
+          key: chroot-v3-${{ inputs.rootfs_base }}-${{ runner.arch }}-${{ hashFiles('scripts/host/20-alarm-chroot.sh', 'scripts/common/distro-env.sh', 'scripts/host/alarm-lib.sh', 'scripts/host/holo-lib.sh') }}
       - name: Prepare ALARM Chroot
         env:
           ALARM_CHROOT_TAR: .chroot-cache/chroot.tar.zst
