@@ -152,4 +152,9 @@ if [[ -f /usr/lib/systemd/user/xiaomi-sheng-keyboard-helper-micmute.service ]]; 
     || warn "全局启用 xiaomi-sheng-keyboard-helper-micmute（user unit）失败"
 fi
 
+# THP creates the touch/pen input devices; installing the package alone is insufficient.
+if [[ -f /usr/lib/systemd/system/xiaomi-sheng-thp.service ]]; then
+  systemctl enable xiaomi-sheng-thp.service
+fi
+
 log "设备包安装完成"

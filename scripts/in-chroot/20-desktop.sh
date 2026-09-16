@@ -29,11 +29,17 @@ PLASMA_MOBILE="${PLASMA_MOBILE:-false}"
 QUIET_BOOT="${QUIET_BOOT:-false}"
 
 # 桌面包的依赖树很深，先 -Syu 对齐一次（避免「部分升级」），再装列表
-pacman -Syu --noconfirm --needed --color never
+if [[ "$DESKTOP" != "Omarchy" ]]; then
+  pacman -Syu --noconfirm --needed --color never
+fi
 
 # 先整批安装列表（快到快，依赖解析最完整）；任何包在 ALARM 仓库里缺失/改名时
 # 会自动退回逐个安装并跳过，最终清单由 90-verify.sh 硬校验。
 case "$DESKTOP" in
+  Omarchy)
+    [[ "$ROOTFS_BASE" == "alarm" ]] || die "Omarchy requires ALARM"
+    bash "$BUILD_DIR/omarchy/install.sh"
+    ;;
   GNOME)
     log "安装 GNOME"
     pac_install_list_best_effort "$BUILD_DIR/lists/gnome.list"

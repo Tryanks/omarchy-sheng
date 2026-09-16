@@ -219,6 +219,18 @@ fi
 # 桌面环境的核心包必须真的装上（lists/*.list 是 best-effort 安装，
 # 单个包改名/缺失不会中断构建，这里做硬校验兜底）
 case "${DESKTOP:-server}" in
+  Omarchy)
+    if /usr/local/lib/omarchy-sheng/verify.sh; then
+      pass "Omarchy payload and ARM linkage"
+    else
+      fail "Omarchy verification failed"
+    fi
+    systemctl is-enabled sddm.service >/dev/null 2>&1 && pass "SDDM enabled" || fail "SDDM disabled"
+    systemctl is-enabled xiaomi-sheng-thp.service >/dev/null 2>&1 && pass "Touch enabled" || fail "THP disabled"
+    if [[ "${AUTOLOGIN:-false}" == "true" ]]; then
+      grep -qx 'Session=omarchy.desktop' /etc/sddm.conf.d/autologin.conf && pass "Omarchy autologin" || fail "Wrong autologin session"
+    fi
+    ;;
   GNOME)
     if pac_installed gnome-shell; then
       pass "gnome-shell 已安装：$(pac_version gnome-shell)"

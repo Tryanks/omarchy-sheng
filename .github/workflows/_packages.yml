@@ -34,6 +34,11 @@ on:
         required: false
         type: string
         default: 'prebuilt'
+      kernel_release:
+        description: 'Same prebuilt release as boot.img; prevents module/kernel skew'
+        required: false
+        type: string
+        default: '7.2.6'
       kernel_repo:
         description: '自定义内核仓库 URL（kernel_source=custom_build 时使用）'
         required: false
@@ -210,7 +215,10 @@ jobs:
         run: |
           set -euo pipefail
           repo="${KERNEL_RELEASES_REPO:-ianchb/sm8550-mainline}"
-          tag="$(gh release list --repo "$repo" --limit 1 --json tagName -q '.[0].tagName')"
+          tag="${{ inputs.kernel_release }}"
+          if [ -z "$tag" ]; then
+            tag="$(gh release list --repo "$repo" --limit 1 --json tagName -q '.[0].tagName')"
+          fi
           [ -n "$tag" ] || { echo "::error::无法获取 $repo 的 release tag"; exit 1; }
           mkdir -p kernel-deb
           gh release download "$tag" --repo "$repo" --pattern 'linux-xiaomi-sheng*.deb' \

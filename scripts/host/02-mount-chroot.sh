@@ -46,6 +46,7 @@ install -m644 /etc/resolv.conf "$MOUNT/etc/resolv.conf"
 
 # 构建脚本入镜像（/root/sheng-build）
 install -d "$MOUNT/root/sheng-build"
+cp -a "$REPO_ROOT/scripts/omarchy" "$MOUNT/root/sheng-build/"
 cp -a "$REPO_ROOT/scripts/common"    "$MOUNT/root/sheng-build/"
 cp -a "$REPO_ROOT/scripts/in-chroot" "$MOUNT/root/sheng-build/"
 cp -a "$REPO_ROOT/scripts/lists"     "$MOUNT/root/sheng-build/"

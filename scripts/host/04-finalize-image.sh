@@ -23,11 +23,15 @@ FS_UUID="${FS_UUID:-ee8d3593-59b1-480e-a3b6-4fefb17ee7d8}"
 SHRINK_IMAGE="${SHRINK_IMAGE:-true}"
 
 # 卸载（可能残留 bind mount，递归卸载兜底）
-umount -R "$MOUNT" 2>/dev/null || umount "$MOUNT" 2>/dev/null || warn "挂载点未挂载或已卸载: $MOUNT"
+if mountpoint -q "$MOUNT"; then
+  umount -R "$MOUNT" || die "Cannot unmount rootfs; refusing offline filesystem edits"
+fi
 sync
 log "镜像已卸载"
 
-e2fsck -fy "$IMAGE" >/dev/null 2>&1 || warn "e2fsck 报告了问题（已尝试修复）"
+rc=0
+e2fsck -fy "$IMAGE" || rc=$?
+(( rc <= 1 )) || die "e2fsck failed: $rc"
 
 if [[ "$SHRINK_IMAGE" == "true" ]]; then
   before="$(du -h --apparent-size "$IMAGE" | cut -f1)"
@@ -53,6 +57,8 @@ fi
 
 tune2fs -U "$FS_UUID" "$IMAGE" >/dev/null 2>&1 || warn "设置文件系统 UUID 失败（fstab 用 PARTLABEL，不影响启动）"
 
+# A successful artifact must be clean, including after shrinking.
+e2fsck -fn "$IMAGE" || die "Final filesystem verification failed"
 log "最终产物:"
 ls -lh "$IMAGE" | sed 's/^/    /'
 du -h --apparent-size "$IMAGE" | sed 's/^/    实际大小(逻辑): /'

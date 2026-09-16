@@ -116,6 +116,15 @@ systemctl enable NetworkManager.service || warn "启用 NetworkManager 失败"
 # 5) 显示管理器 + 自动登录
 # ---------------------------------------------------------------------------
 case "$DESKTOP" in
+  Omarchy)
+    if [[ "$AUTOLOGIN" == "true" ]]; then
+      install -d /etc/sddm.conf.d
+      printf '[Autologin]\nUser=%s\nSession=omarchy.desktop\n' "$USERNAME" > /etc/sddm.conf.d/autologin.conf
+    fi
+    systemctl enable sddm.service bluetooth.service power-profiles-daemon.service
+    systemctl disable systemd-networkd-wait-online.service || true
+    systemctl set-default graphical.target
+    ;;
   GNOME)
     if [[ "$ROOTFS_BASE" == "holo-core" ]]; then
       die "holo-core 源里没有 GNOME/gdm（请在 workflow 里改选 KDE Plasma 或 server）"

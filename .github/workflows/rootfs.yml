@@ -24,8 +24,9 @@ on:
         description: '桌面环境（server 为无图形界面）'
         required: true
         type: choice
-        default: 'KDE Plasma'
+        default: 'Omarchy'
         options:
+          - 'Omarchy'
           - 'KDE Plasma'
           - 'GNOME'
           - 'server'
@@ -170,6 +171,7 @@ jobs:
     uses: ./.github/workflows/_packages.yml
     with:
       kernel_source: ${{ inputs.kernel_source }}
+      kernel_release: ${{ inputs.kernel_release }}
       kernel_repo: ${{ inputs.kernel_repo }}
       kernel_branch: ${{ inputs.kernel_branch }}
       kernel_config: ${{ inputs.kernel_config }}
@@ -214,6 +216,9 @@ jobs:
             if [ "$IN_QUIET_BOOT" = "true" ] && [ "$IN_DESKTOP" != "server" ]; then
               echo "::warning::holo-core 源里没有 plymouth，本次构建将不安装开机画面（quiet_boot 被忽略）"
             fi
+          fi
+          if [ "$IN_DESKTOP" = "Omarchy" ] && [ "$ROOTFS_BASE" != "alarm" ]; then
+            echo "::error::Omarchy requires the ALARM base"; exit 1
           fi
           # 密码优先级：password 输入项 > ROOTFS_PASSWORD secret > 默认 password。
           # 输入项不是 secret（会明文显示在本次运行的输入摘要里），因此立刻 add-mask，
@@ -478,6 +483,9 @@ jobs:
       - name: "[chroot] Verify Image"
         run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/90-verify.sh
 
+      - name: Record installed package versions
+        run: sudo chroot "$ROOTFS_MOUNT" pacman -Q > packages.txt
+
       - name: "[chroot] Clean pacman cache"
         if: success()
         run: |
@@ -489,7 +497,8 @@ jobs:
       - name: Cleanup Host Files
         if: always()
         run: |
-          sudo rm -f "$ROOTFS_MOUNT/etc/resolv.conf" 2>/dev/null || true
+          sudo rm -f "$ROOTFS_MOUNT/etc/resolv.conf"
+          sudo ln -s /run/NetworkManager/resolv.conf "$ROOTFS_MOUNT/etc/resolv.conf"
           sudo rm -f "$ROOTFS_MOUNT/root/build.pw" 2>/dev/null || true
           # 构建脚本与包载荷不该留在出厂镜像里（90-verify 已跑完，可以安全删除）
           sudo rm -rf "$ROOTFS_MOUNT/root/sheng-build" 2>/dev/null || true
@@ -506,12 +515,21 @@ jobs:
           sudo env SHRINK_IMAGE="${{ inputs.shrink_image }}" \
             bash scripts/host/04-finalize-image.sh rootfs.img "$ROOTFS_MOUNT"
 
+      - name: Checksums and package manifest
+        if: success()
+        run: |
+          sha256sum rootfs.img boot.img > SHA256SUMS
+          printf '%s\n' '${{ github.sha }}' > SOURCE_REVISION
+
       - name: Upload RootFS Image
         if: success() && inputs.upload_artifacts
         uses: actions/upload-artifact@v7
         with:
           name: rootfs-arch-${{ steps.parse.outputs.desktop_slug }}-${{ steps.parse.outputs.label }}
-          path: rootfs.img
+          path: |
+            rootfs.img
+            packages.txt
+            SHA256SUMS
           retention-days: 14
           compression-level: 1
           if-no-files-found: error
