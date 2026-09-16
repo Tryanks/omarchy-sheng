@@ -4,6 +4,9 @@
 set -euo pipefail
 (( EUID == 0 )) || { echo 'Run as root inside ARM64 Linux.' >&2; exit 1; }
 [[ $(uname -m) == aarch64 ]] || { echo 'Native aarch64 Linux is required.' >&2; exit 1; }
+for tool in git python3 curl mkfs.ext4 e2fsck resize2fs tune2fs mount chroot; do
+  command -v "$tool" >/dev/null || { echo "Missing host tool: $tool" >&2; exit 1; }
+done
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 packages=$(realpath "${1:?device package directory required}")
 boot=$(realpath "${2:?matching boot image required}")
@@ -70,6 +73,6 @@ bash "$repo/scripts/host/03-umount-chroot.sh" "$mount_dir"
 bash "$repo/scripts/host/04-finalize-image.sh" "$image" "$mount_dir"
 trap - EXIT
 rmdir "$mount_dir"
-git -C "$repo" rev-parse HEAD > "$output/SOURCE_REVISION"
+git -c safe.directory="$repo" -C "$repo" rev-parse HEAD > "$output/SOURCE_REVISION"
 (cd "$output" && sha256sum rootfs.img boot.img packages.txt > SHA256SUMS)
 echo "Fresh image ready: $output"
